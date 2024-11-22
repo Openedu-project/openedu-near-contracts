@@ -1,0 +1,15 @@
+[package]
+name = "ft_token"
+edition = "2021"
+version = "0.1.0"
+license = "MIT"
+description = "The Contract for Fungible Token platform"
+
+[lib]
+crate-type = ["cdylib"]
+
+
+[dependencies]
+near-sdk = "4.0.0"
+near-contract-standards = "4.0.0"
+uint = { version = "0.9.3", default-features = false }
