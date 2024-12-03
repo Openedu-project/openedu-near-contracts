@@ -918,6 +918,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "payment"
+version = "0.1.0"
+dependencies = [
+ "near-contract-standards",
+ "near-sdk",
+ "near-units",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1363,15 +1372,6 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "winnow",
-]
-
-[[package]]
-name = "treasury"
-version = "0.1.0"
-dependencies = [
- "near-contract-standards",
- "near-sdk",
- "near-units",
 ]
 
 [[package]]

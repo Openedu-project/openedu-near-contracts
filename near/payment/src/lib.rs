@@ -1,4 +1,4 @@
-use models::contract::{Treasury, TreasuryStorageKey, TreasuryExt};
+use models::contract::{Payment, PaymentStorageKey, PaymentExt};
 use near_sdk::borsh::BorshSerialize;
 use near_sdk::{
     collections::{LookupMap, UnorderedSet},
@@ -9,7 +9,7 @@ pub mod application;
 pub mod models;
 
 #[near_bindgen]
-impl Treasury {
+impl Payment {
     #[init]
     pub fn init() -> Self {
         let owner_id = env::signer_account_id();
@@ -22,8 +22,8 @@ impl Treasury {
         Self {
             owner_id,
             list_assets: Vec::new(),
-            records_user_by_id: LookupMap::new(TreasuryStorageKey::RecordUserById.try_to_vec().unwrap()),
-            all_user_id: UnorderedSet::new(TreasuryStorageKey::AllUserId.try_to_vec().unwrap())
+            records_user_by_id: LookupMap::new(PaymentStorageKey::RecordUserById.try_to_vec().unwrap()),
+            all_user_id: UnorderedSet::new(PaymentStorageKey::AllUserId.try_to_vec().unwrap())
         }
     }
 }

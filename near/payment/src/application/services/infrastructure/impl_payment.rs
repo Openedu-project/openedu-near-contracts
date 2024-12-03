@@ -4,7 +4,7 @@ use std::hash::RandomState;
 use near_sdk::{env, json_types::U128, near_bindgen, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::models::{
-    contract::{Treasury, TreasuryExt, TreasuryFeature, Assets, UserTokenDepositRecord, TokenDeposit, PaymentInfo}, ft_request::external::cross_edu
+    contract::{Payment, PaymentExt, PaymentFeature, Assets, UserTokenDepositRecord, TokenDeposit, PaymentInfo}, ft_request::external::cross_edu
 };
 
 
@@ -14,7 +14,7 @@ pub const ATTACHED_TRANSFER_FT: u128 = 1;
 pub const ATTACHED_STORAGE_DEPOSIT: u128 = 1_250_000_000_000_000_000_000;
 
 #[near_bindgen]
-impl TreasuryFeature for Treasury {
+impl PaymentFeature for Payment {
    
     fn ft_on_transfer(
         &mut self,
@@ -131,5 +131,35 @@ impl TreasuryFeature for Treasury {
         } else {
             env::panic_str("User record not found.");
         }
+    }
+
+    fn change_admin(&mut self, new_admin: AccountId) {
+       
+        if env::signer_account_id() != self.owner_id {
+            env::panic_str("Only the current admin can change the admin.");
+        }
+
+        self.owner_id = new_admin.clone();
+        env::log_str(&format!("Admin changed to: {}", new_admin));
+    }
+
+    fn delete_token_by_token_id(
+        &mut self,
+        token_id: AccountId
+    ) {
+        if env::signer_account_id() != self.owner_id {
+            env::panic_str("Only the admin can delete a token.");
+        }
+
+        // Remove the token from all user records
+        for user_id in self.all_user_id.iter() {
+            if let Some(mut user_record) = self.records_user_by_id.get(&user_id) {
+                user_record.deposits.retain(|deposit| deposit.token_id != token_id);
+                self.records_user_by_id.insert(&user_id, &user_record);
+            }
+        }
+
+        // Log the deletion of the token
+        env::log_str(&format!("Token with ID {} has been deleted.", token_id));
     }
 }
