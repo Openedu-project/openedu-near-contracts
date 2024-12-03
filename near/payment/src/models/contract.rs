@@ -11,7 +11,7 @@ use near_sdk::{
 
 #[near_bindgen]
 #[derive(PanicOnDefault, BorshDeserialize, BorshSerialize)]
-pub struct Treasury {
+pub struct Payment {
     /// Account ID of the owner of the contract.
     pub owner_id: AccountId,  
     pub list_assets: Vec<Assets>,
@@ -48,12 +48,12 @@ pub struct TokenDeposit {
 }
 
 #[derive(BorshSerialize)]
-pub enum TreasuryStorageKey {
+pub enum PaymentStorageKey {
     RecordUserById,
     AllUserId,
 }
 
-pub trait TreasuryFeature {
+pub trait PaymentFeature {
     fn ft_on_transfer(
         &mut self,
         sender_id: AccountId,
@@ -82,7 +82,7 @@ pub trait TreasuryFeature {
     );
 }
 
-pub trait TreasuryEnum {
+pub trait PaymentEnum {
     fn get_user_info_by_id(&self, user_id: AccountId) -> Option<UserTokenDepositRecord>;
     fn get_all_token_id(&self) -> Option<Vec<AccountId>>;
 }

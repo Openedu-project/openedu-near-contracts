@@ -1,7 +1,7 @@
 # Contracts for testnet 
 
 ```bash
-near deploy $PAYMENT ./target/wasm32-unknown-unknown/release/treasury.wasm
+near deploy $PAYMENT ./target/wasm32-unknown-unknown/release/payment.wasm
 near call $PAYMENT init --accountId $ADMIN
 # Admin add author & add token 
 near call $PAYMENT add_token '{"token_id": "'$TOKEN_ID'"}' --accountId $ADMIN

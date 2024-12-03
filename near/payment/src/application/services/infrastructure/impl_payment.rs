@@ -4,7 +4,7 @@ use std::hash::RandomState;
 use near_sdk::{env, json_types::U128, near_bindgen, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::models::{
-    contract::{Treasury, TreasuryExt, TreasuryFeature, Assets, UserTokenDepositRecord, TokenDeposit, PaymentInfo}, ft_request::external::cross_edu
+    contract::{Payment, PaymentExt, PaymentFeature, Assets, UserTokenDepositRecord, TokenDeposit, PaymentInfo}, ft_request::external::cross_edu
 };
 
 
@@ -14,7 +14,7 @@ pub const ATTACHED_TRANSFER_FT: u128 = 1;
 pub const ATTACHED_STORAGE_DEPOSIT: u128 = 1_250_000_000_000_000_000_000;
 
 #[near_bindgen]
-impl TreasuryFeature for Treasury {
+impl PaymentFeature for Payment {
    
     fn ft_on_transfer(
         &mut self,
