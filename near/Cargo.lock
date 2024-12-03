@@ -815,6 +815,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nft_25519"
+version = "1.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "near-contract-standards",
+ "near-sdk",
+]
+
+[[package]]
 name = "num-bigint"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
