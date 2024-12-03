@@ -132,4 +132,34 @@ impl TreasuryFeature for Treasury {
             env::panic_str("User record not found.");
         }
     }
+
+    fn change_admin(&mut self, new_admin: AccountId) {
+       
+        if env::signer_account_id() != self.owner_id {
+            env::panic_str("Only the current admin can change the admin.");
+        }
+
+        self.owner_id = new_admin.clone();
+        env::log_str(&format!("Admin changed to: {}", new_admin));
+    }
+
+    fn delete_token_by_token_id(
+        &mut self,
+        token_id: AccountId
+    ) {
+        if env::signer_account_id() != self.owner_id {
+            env::panic_str("Only the admin can delete a token.");
+        }
+
+        // Remove the token from all user records
+        for user_id in self.all_user_id.iter() {
+            if let Some(mut user_record) = self.records_user_by_id.get(&user_id) {
+                user_record.deposits.retain(|deposit| deposit.token_id != token_id);
+                self.records_user_by_id.insert(&user_id, &user_record);
+            }
+        }
+
+        // Log the deletion of the token
+        env::log_str(&format!("Token with ID {} has been deleted.", token_id));
+    }
 }

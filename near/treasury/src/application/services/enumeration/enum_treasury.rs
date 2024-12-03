@@ -6,9 +6,15 @@ use crate::models::{
 
 #[near_bindgen]
 impl TreasuryEnum for Treasury {
-    fn get_user_info_by_id(&self, user_id: AccountId) -> UserTokenDepositRecord {
-        let user_info = self.records_user_by_id.get(&user_id).unwrap();
+    fn get_user_info_by_id(&self, user_id: AccountId) -> Option<UserTokenDepositRecord> {
+        self.records_user_by_id.get(&user_id)
+    }
 
-        user_info
+    fn get_all_token_id(&self) -> Option<Vec<AccountId>> {
+        if self.list_assets.is_empty() {
+            None
+        } else {
+            Some(self.list_assets.iter().map(|asset| asset.token_id.clone()).collect())
+        }
     }
 }

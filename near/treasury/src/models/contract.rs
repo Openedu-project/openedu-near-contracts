@@ -70,8 +70,19 @@ pub trait TreasuryFeature {
         &mut self,
         token_id: String,
     );
+
+    fn change_admin(
+        &mut self,
+        new_admin: AccountId
+    );
+
+    fn delete_token_by_token_id(
+        &mut self,
+        token_id: AccountId
+    );
 }
 
 pub trait TreasuryEnum {
-    fn get_user_info_by_id(&self, user_id: AccountId) -> UserTokenDepositRecord;
+    fn get_user_info_by_id(&self, user_id: AccountId) -> Option<UserTokenDepositRecord>;
+    fn get_all_token_id(&self) -> Option<Vec<AccountId>>;
 }

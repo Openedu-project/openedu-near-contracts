@@ -5,6 +5,8 @@ near deploy $PAYMENT ./target/wasm32-unknown-unknown/release/treasury.wasm
 near call $PAYMENT init --accountId $ADMIN
 # Admin add author & add token 
 near call $PAYMENT add_token '{"token_id": "'$TOKEN_ID'"}' --accountId $ADMIN
+near call $PAYMENT change_admin '{"new_admin": "''"}' --accountId $ADMIN
+near call $PAYMENT delete_token_by_token_id '{"token_id": ""}' --accountId $ADMIN
 ```
 
 ## Function for Be
@@ -20,4 +22,5 @@ near call $PAYMENT claim '{"token_id": "'$TOKEN_ID'"}' --accountId $USER1
 # read data user_id
 ```bash
 near view $PAYMENT  get_user_info_by_id '{"user_id": "refferal-1.testnet"}'
+near view $PAYMENT get_all_token_id
 ```
