@@ -1,48 +1,30 @@
 name: Rust Build
-
+ 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
+ 
 env:
   CARGO_TERM_COLOR: always
-
+ 
 jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v3
-    
-    - name: Set working directory
-      run: echo "WORKDIR=$GITHUB_WORKSPACE/near" >> $GITHUB_ENV
-    
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: stable
         override: true
-    
     - name: Install cargo-make
-      uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: cargo-make
-    
-    - name: Clean
-      uses: actions-rs/cargo@v1
-      with:
-        command: make
-        args: clean
-      working-directory: ${{ env.WORKDIR }}
-    
-    - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        command: make
-        args: build
-      working-directory: ${{ env.WORKDIR }}
+      run: cargo install cargo-make
+    - name: Clean and Build
+      run: |
+        cd near
+        cargo make clean
+        cargo make build
