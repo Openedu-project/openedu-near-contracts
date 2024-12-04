@@ -1,5 +1,11 @@
 # Contracts for testnet 
 
+## Compile Contract
+```bash
+cargo make clean
+cargo make build
+```
+
 ## PAYMENT
 
 ```bash
@@ -31,3 +37,5 @@ near view $PAYMENT get_all_token_id
 ```bash
 near deploy $NFT ./target/wasm32-unknown-unknown/release/nft_25519.wasm
 ```
+
+## Launchpad

@@ -547,6 +547,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "launchpad"
+version = "0.1.0"
+dependencies = [
+ "near-contract-standards",
+ "near-sdk",
+ "near-units",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -812,15 +821,6 @@ dependencies = [
  "sha2 0.10.8",
  "sha3",
  "zeropool-bn",
-]
-
-[[package]]
-name = "nft_25519"
-version = "1.1.0"
-dependencies = [
- "ed25519-dalek",
- "near-contract-standards",
- "near-sdk",
 ]
 
 [[package]]
