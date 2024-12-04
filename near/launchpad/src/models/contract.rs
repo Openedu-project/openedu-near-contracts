@@ -17,6 +17,7 @@ pub struct Launchpad {
     /// Account ID of the owner of the contract.
     pub owner_id: AccountId,  
     pub all_pool_id: UnorderedSet<PoolId>,
+    pub list_assets: Vec<AccountId>,
     pub pool_metadata_by_id: LookupMap<PoolId, PoolMetadata>,
 }
 
@@ -39,7 +40,7 @@ pub struct PoolMetadata {
 pub enum Status {
     INIT,
     FUNDING,
-    WAIT,
+    WAITING,
     VOTING,
     CLOSED,
 }
@@ -56,4 +57,42 @@ pub struct UserTokenDepositRecord {
 pub enum LaunchpadStorageKey {
     AllPoolId,
     PoolMetadataById
+}
+
+pub trait LaunchpadFeature {
+    fn init_pool(
+        &mut self,
+    ) -> PoolMetadata;
+
+    fn ft_on_transfer(
+        &mut self,
+        sender_id: AccountId,
+        amount: U128,
+        msg: String,
+    ) -> PromiseOrValue<U128>;
+
+    fn start_voting(&mut self);
+    fn change_pool_infor(&mut self);
+    fn refund(&mut self);
+
+
+    fn add_token(
+        &mut self,
+        token_id: String,
+    );
+
+    fn change_admin(
+        &mut self,
+        new_admin: AccountId
+    );
+
+    fn delete_token_by_token_id(
+        &mut self,
+        token_id: AccountId
+    );
+}
+
+pub trait PaymentEnum {
+    fn get_all_pool(&self) -> Option<Vec<PoolMetadata>>;
+    fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<AccountId>>;
 }
