@@ -22,6 +22,7 @@ impl Launchpad {
         Self {
             owner_id,
             all_pool_id: UnorderedSet::new(LaunchpadStorageKey::AllPoolId.try_to_vec().unwrap()),
+            list_assets: Vec::new(),
             pool_metadata_by_id: LookupMap::new(LaunchpadStorageKey::PoolMetadataById.try_to_vec().unwrap())
         }
     }
