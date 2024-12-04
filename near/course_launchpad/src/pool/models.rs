@@ -14,6 +14,7 @@ pub struct Pool {
     pub status: PoolStatus,
     pub total_balance: NearToken,
     pub min_deposit: NearToken,
+    pub min_staking: NearToken,
     pub user_records: HashMap<AccountId, UserRecord>,
     pub created_at: u64,
 }

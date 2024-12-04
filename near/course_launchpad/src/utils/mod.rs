@@ -1,7 +1,7 @@
 use near_sdk::{env, NearToken};
 
-pub const ONE_NEAR: NearToken = NearToken::from_near(1);
-pub const MIN_DEPOSIT: NearToken = ONE_NEAR;
+pub const DEFAULT_MIN_STAKING: NearToken = NearToken::from_near(1);
+pub const MIN_DEPOSIT: NearToken = DEFAULT_MIN_STAKING;
 
 pub fn assert_one_yocto() {
     assert_eq!(
@@ -13,7 +13,7 @@ pub fn assert_one_yocto() {
 
 pub fn assert_at_least_one_near() {
     assert!(
-        env::attached_deposit() >= ONE_NEAR,
+        env::attached_deposit() >= DEFAULT_MIN_STAKING,
         "Requires attached deposit of at least 1 NEAR"
     );
 }
