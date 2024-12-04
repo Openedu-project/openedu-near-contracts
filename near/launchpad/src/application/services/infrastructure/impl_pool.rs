@@ -4,9 +4,8 @@ use std::hash::RandomState;
 use near_sdk::{env, json_types::U128, near_bindgen, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::models::{
-    contract::{Launchpad, LaunchpadExt, LaunchpadFeature, Assets, UserTokenDepositRecord}, ft_request::external::cross_edu
+    contract::{Launchpad, LaunchpadExt, LaunchpadFeature, UserTokenDepositRecord, PoolMetadata}, ft_request::external::cross_edu
 };
-
 
 pub const GAS_FOR_CROSS_CALL: Gas = Gas(3_000_000_000_000);
 pub const GAS_FOR_FT_TRANSFER_CALL: Gas = Gas(300_000_000_000_000);
@@ -15,16 +14,35 @@ pub const ATTACHED_STORAGE_DEPOSIT: u128 = 1_250_000_000_000_000_000_000;
 
 #[near_bindgen]
 impl LaunchpadFeature for Launchpad {
-    fn init_pool(&mut self) -> PoolMetadata {
+    #[payable]
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8) -> PoolMetadata {
+        let pool_id = self.all_pool_id.len() as u64 + 1;
+        let creator_id = env::signer_account_id();
+        let staking_amount = env::attached_deposit();
+
+        if staking_amount <= 1_000_000_000_000_000_000 {
+            env::panic_str("Attached deposit must be greater than 1 NEAR.");
+        }
+        
         let pool = PoolMetadata {
-            
+            pool_id,
+            campaign_id,
+            creator_id,
+            staking_amount,
+            status: Status::INIT,
+            token_id,
+            total_balance: 0,
+            mint_multiple_pledge,
+            user_records: Vec::new(),
         };
-    } // TODO
+        self.all_pool_id.push(pool_id);
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+        pool
+    }
 
     fn start_voting(&mut self) {}
     fn change_pool_infor(&mut self) {}
     fn refund(&mut self) {}
-
 
     fn ft_on_transfer(
         &mut self,
@@ -37,13 +55,12 @@ impl LaunchpadFeature for Launchpad {
         
         let token_id_from_msg = env::predecessor_account_id();
 
-        if !self.list_assets.iter().any(|asset| asset.token_id == token_id_from_msg.clone()) {
+        if !self.list_assets.iter().any(|asset| asset.token_id == token_id_from_msg) {
             env::panic_str("Token ID from message does not match any token ID in the list.");
         }
 
         PromiseOrValue::Value(U128(0))
-
-    } // TODO
+    }
 
     fn add_token(
         &mut self,
@@ -60,14 +77,13 @@ impl LaunchpadFeature for Launchpad {
         }
 
         let ft_addr = AccountId::new_unchecked(token_id.clone());
-            cross_edu::ext(ft_addr.to_owned())
-                .with_static_gas(GAS_FOR_CROSS_CALL)
-                .with_attached_deposit(ATTACHED_STORAGE_DEPOSIT)
-                .storage_deposit(env::current_account_id());
+        cross_edu::ext(ft_addr.to_owned())
+            .with_static_gas(GAS_FOR_CROSS_CALL)
+            .with_attached_deposit(ATTACHED_STORAGE_DEPOSIT)
+            .storage_deposit(env::current_account_id());
 
         self.list_assets.push(Assets {
-            token_id: AccountId::new_unchecked
-            (token_id.clone()),
+            token_id: AccountId::new_unchecked(token_id),
             balances: 0,
         });
     }
@@ -90,7 +106,6 @@ impl LaunchpadFeature for Launchpad {
             env::panic_str("Only the admin can delete a token.");
         }
 
-        // Log the deletion of the token
         env::log_str(&format!("Token with ID {} has been deleted.", token_id));
-    } // TODO
+    }
 }

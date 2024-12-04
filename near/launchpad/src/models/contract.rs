@@ -60,9 +60,7 @@ pub enum LaunchpadStorageKey {
 }
 
 pub trait LaunchpadFeature {
-    fn init_pool(
-        &mut self,
-    ) -> PoolMetadata;
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8) -> PoolMetadata;
 
     fn ft_on_transfer(
         &mut self,

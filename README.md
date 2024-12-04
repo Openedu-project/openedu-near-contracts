@@ -1,0 +1,3 @@
+# TESTNET
+
+# MAINNET
