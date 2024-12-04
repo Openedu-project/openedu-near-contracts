@@ -3,6 +3,8 @@ resolver = "2"
 members = [
     "payment",
     "ft_token",
+    "launchpad"
+#    "nft_25519"
 ]
 
 [profile.release]
