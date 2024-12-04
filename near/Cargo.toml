@@ -1,8 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "payment",
-    "ft_token",
+    #"payment",
+    #"ft_token",
+    "course_launchpad"
 ]
 
 [profile.release]
