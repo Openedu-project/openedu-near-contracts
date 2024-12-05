@@ -5,7 +5,7 @@ use near_sdk::{
     env, near_bindgen, AccountId,
 };
 
-// pub mod application;
+pub mod application;
 pub mod models;
 
 #[near_bindgen]

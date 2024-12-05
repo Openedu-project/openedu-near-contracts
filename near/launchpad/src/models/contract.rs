@@ -17,7 +17,7 @@ pub struct Launchpad {
     /// Account ID of the owner of the contract.
     pub owner_id: AccountId,  
     pub all_pool_id: UnorderedSet<PoolId>,
-    pub list_assets: Vec<AccountId>,
+    pub list_assets: Vec<Assets>,
     pub pool_metadata_by_id: LookupMap<PoolId, PoolMetadata>,
 }
 
@@ -31,8 +31,17 @@ pub struct PoolMetadata {
     pub status: Status,
     pub token_id: AccountId,
     pub total_balance: u128,
+    pub time_start_pledge: u64,
+    pub time_end_pledge: u64,
     pub mint_multiple_pledge: u8,
     pub user_records: Vec<UserTokenDepositRecord>
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Assets {
+    pub token_id: AccountId,
+    pub balances: u128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug)]
