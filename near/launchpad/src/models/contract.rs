@@ -59,7 +59,7 @@ pub enum Status {
 pub struct UserTokenDepositRecord {
     pub user_id: AccountId,
     pub amount: u128,
-    pub voting_power: u8,
+    pub voting_power: f64,
 }
 
 #[derive(BorshSerialize)]
@@ -78,7 +78,8 @@ pub trait LaunchpadFeature {
         msg: String,
     ) -> PromiseOrValue<U128>;
 
-    fn start_voting(&mut self);
+    fn start_voting(&mut self, pool_id: PoolId) -> PoolMetadata;
+
     fn change_pool_infor(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64);
     fn refund(&mut self);
 
@@ -102,4 +103,5 @@ pub trait LaunchpadFeature {
 pub trait PaymentEnum {
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>>;
     fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<AccountId>>;
+    fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>>;
 }
