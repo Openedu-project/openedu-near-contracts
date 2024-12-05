@@ -4,7 +4,7 @@ use std::hash::RandomState;
 use near_sdk::{env, json_types::U128, near_bindgen, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::models::{
-    contract::{Assets, Launchpad, LaunchpadExt, LaunchpadFeature, PoolMetadata, Status, UserTokenDepositRecord}, ft_request::external::cross_edu
+    contract::{Assets, Launchpad, LaunchpadExt, LaunchpadFeature, PoolMetadata, Status, UserTokenDepositRecord}, ft_request::external::cross_edu, PoolId
 };
 
 
@@ -44,7 +44,23 @@ impl LaunchpadFeature for Launchpad {
         pool
     }
 
-    fn start_voting(&mut self) {}
+    fn start_voting(&mut self, pool_id: PoolId) -> PoolMetadata {
+        if let Some(mut pool) = self.pool_metadata_by_id.get(&pool_id) {
+        let current_time = env::block_timestamp();
+        if current_time > pool.time_start_pledge {
+            for user_record in &mut pool.user_records {
+                user_record.voting_power = ((user_record.amount as f64 / pool.total_balance as f64) * 100.0);
+            }
+            pool.status = Status::VOTING;
+            self.pool_metadata_by_id.insert(&pool_id, &pool);
+            pool
+        } else {
+            env::panic_str("Voting cannot start before the pledge start time.");
+        }
+        } else {
+            env::panic_str("Pool with the given ID does not exist.");
+        }
+    }
 
     fn change_pool_infor(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64) {
         
