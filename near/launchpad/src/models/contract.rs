@@ -69,7 +69,7 @@ pub enum LaunchpadStorageKey {
 }
 
 pub trait LaunchpadFeature {
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8) -> PoolMetadata;
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8, time_start_pledge: u64, time_end_pledge: u64) -> PoolMetadata;
 
     fn ft_on_transfer(
         &mut self,
@@ -79,7 +79,7 @@ pub trait LaunchpadFeature {
     ) -> PromiseOrValue<U128>;
 
     fn start_voting(&mut self);
-    fn change_pool_infor(&mut self);
+    fn change_pool_infor(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64);
     fn refund(&mut self);
 
 
