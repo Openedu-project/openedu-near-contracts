@@ -100,7 +100,7 @@ pub trait LaunchpadFeature {
     );
 }
 
-pub trait PaymentEnum {
+pub trait LaunchpadEnum {
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>>;
     fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<AccountId>>;
     fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>>;
