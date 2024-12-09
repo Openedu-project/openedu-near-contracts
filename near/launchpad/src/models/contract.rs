@@ -1,7 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{
     collections::{LookupMap, UnorderedSet},
-    json_types::Base64VecU8,
     near_bindgen,
     serde::{Deserialize, Serialize},
     AccountId, PanicOnDefault,
@@ -11,6 +10,8 @@ use near_sdk::{
 
 use super::PoolId;
 
+pub const DEFAULT_MIN_STAKING: u128 = 1_000_000_000_000_000_000_000; // 1 NEAR
+
 #[near_bindgen]
 #[derive(PanicOnDefault, BorshDeserialize, BorshSerialize)]
 pub struct Launchpad {
@@ -19,6 +20,8 @@ pub struct Launchpad {
     pub all_pool_id: UnorderedSet<PoolId>,
     pub list_assets: Vec<Assets>,
     pub pool_metadata_by_id: LookupMap<PoolId, PoolMetadata>,
+    pub min_staking_amount: u128,
+    pub refund_percent: u8,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
@@ -57,9 +60,9 @@ pub enum Status {
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct UserTokenDepositRecord {
-    pub user_id: AccountId,
-    pub amount: u128,
-    pub voting_power: f64,
+    pub user_id: AccountId, // backer
+    pub amount: u128, // pledge amount if backer deposited +amount
+    pub voting_power: f64, // 0
 }
 
 #[derive(BorshSerialize)]
@@ -98,10 +101,25 @@ pub trait LaunchpadFeature {
         &mut self,
         token_id: AccountId
     );
+
+    fn set_min_staking_amount(&mut self, amount: U128);
+    fn get_min_staking_amount(&self) -> U128;
+
+    fn set_refund_reject_pool(&mut self, percent: u8);
+    fn get_refund_reject_pool(&self) -> u8;
+
+    fn approve_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
+    fn reject_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
 }
 
 pub trait LaunchpadEnum {
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>>;
     fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<AccountId>>;
     fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>>;
+    fn get_all_funding_pools(&self) -> Option<Vec<PoolMetadata>>;
+    fn get_all_init_pools(&self) -> Option<Vec<PoolMetadata>>;
+    fn get_all_closed_pools(&self) -> Option<Vec<PoolMetadata>>;
+    fn get_all_waiting_pools(&self) -> Option<Vec<PoolMetadata>>;
+    fn get_detail_pool(&self, pool_id: PoolId) -> Option<PoolMetadata>;
+    fn get_balance_creator(&self, pool_id: PoolId) -> Option<u128>;
 }

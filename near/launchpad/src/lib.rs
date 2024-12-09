@@ -1,4 +1,4 @@
-use models::contract::{Launchpad, LaunchpadStorageKey, LaunchpadExt};
+use models::contract::{Launchpad, LaunchpadStorageKey, LaunchpadExt, DEFAULT_MIN_STAKING};
 use near_sdk::borsh::BorshSerialize;
 use near_sdk::{
     collections::{LookupMap, UnorderedSet},
@@ -23,7 +23,9 @@ impl Launchpad {
             owner_id,
             all_pool_id: UnorderedSet::new(LaunchpadStorageKey::AllPoolId.try_to_vec().unwrap()),
             list_assets: Vec::new(),
-            pool_metadata_by_id: LookupMap::new(LaunchpadStorageKey::PoolMetadataById.try_to_vec().unwrap())
+            pool_metadata_by_id: LookupMap::new(LaunchpadStorageKey::PoolMetadataById.try_to_vec().unwrap()),
+            min_staking_amount: DEFAULT_MIN_STAKING,
+            refund_percent: 0,
         }
     }
 }
