@@ -262,7 +262,7 @@ impl LaunchpadFeature for Launchpad {
 
         env::log_str(&format!("Token with ID {} has been deleted.", token_id));
     }
-
+    // admin can approve pool
     fn approve_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
         if env::signer_account_id() != self.owner_id {
             env::panic_str("Only admin can approve pools");
@@ -286,7 +286,7 @@ impl LaunchpadFeature for Launchpad {
 
         pool
     }
-
+    // admin can reject pool
     fn reject_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
         if env::signer_account_id() != self.owner_id {
             env::panic_str("Only admin can reject pools");
