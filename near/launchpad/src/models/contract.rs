@@ -84,7 +84,7 @@ pub trait LaunchpadFeature {
     fn start_voting(&mut self, pool_id: PoolId) -> PoolMetadata;
 
     fn change_pool_infor(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64);
-    fn refund(&mut self);
+    fn refund(&mut self, pool_id: PoolId);
 
 
     fn add_token(

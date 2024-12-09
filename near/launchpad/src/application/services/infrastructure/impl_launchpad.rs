@@ -121,59 +121,50 @@ impl LaunchpadFeature for Launchpad {
         }
     }
 
-    fn refund(&mut self) {
+    fn refund(&mut self, pool_id: PoolId) {
         let signer_id = env::signer_account_id();
         
         if signer_id != self.owner_id {
             env::panic_str("Only admin can initiate refunds");
         }
 
-        let refundable_pools: Vec<PoolMetadata> = self.all_pool_id.iter()
-            .filter_map(|pool_id| {
-                let pool = self.pool_metadata_by_id.get(&pool_id)?;
-                if matches!(pool.status, Status::FUNDING | Status::WAITING) {
-                    Some(pool)
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
 
-        if refundable_pools.is_empty() {
-            env::panic_str("No pools available for refund");
+        if !matches!(pool.status, Status::FUNDING | Status::WAITING) {
+            env::panic_str("Pool must be in FUNDING or WAITING status to be refunded");
         }
 
-        for mut pool in refundable_pools {
-            for user_record in &pool.user_records {
-                if user_record.amount > 0 {
-                    cross_edu::ext(pool.token_id.clone())
-                        .with_static_gas(GAS_FOR_FT_TRANSFER_CALL)
-                        .with_attached_deposit(1)
-                        .ft_transfer(
-                            user_record.user_id.clone(),
-                            U128(user_record.amount),
-                        );
+        for user_record in &pool.user_records {
+            if user_record.amount > 0 {
+                cross_edu::ext(pool.token_id.clone())
+                    .with_static_gas(GAS_FOR_FT_TRANSFER_CALL)
+                    .with_attached_deposit(1)
+                    .ft_transfer(
+                        user_record.user_id.clone(),
+                        U128(user_record.amount),
+                    );
 
-                    env::log_str(&format!(
-                        "Refunded {} tokens to user {}",
-                        user_record.amount,
-                        user_record.user_id
-                    ));
-                }
+                env::log_str(&format!(
+                    "Refunded {} tokens to user {}",
+                    user_record.amount,
+                    user_record.user_id
+                ));
             }
-
-            pool.status = Status::CLOSED;
-            pool.total_balance = 0;
-            
-            pool.user_records.clear();
-            
-            self.pool_metadata_by_id.insert(&pool.pool_id, &pool);
-
-            env::log_str(&format!(
-                "Pool {} has been closed and all funds refunded",
-                pool.pool_id
-            ));
         }
+
+        // Update pool status and clear data
+        pool.status = Status::CLOSED;
+        pool.total_balance = 0;
+        pool.user_records.clear();
+        
+        // Update pool metadata
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        env::log_str(&format!(
+            "Pool {} has been closed and all funds refunded",
+            pool_id
+        ));
     }
 
     fn ft_on_transfer(
