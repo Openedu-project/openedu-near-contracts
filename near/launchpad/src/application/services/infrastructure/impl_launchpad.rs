@@ -72,32 +72,50 @@ impl LaunchpadFeature for Launchpad {
 
     fn start_voting(&mut self, pool_id: PoolId) -> PoolMetadata {
         if let Some(mut pool) = self.pool_metadata_by_id.get(&pool_id) {
-            let current_time = env::block_timestamp();
-            if current_time > pool.time_start_pledge {
-                for user_record in &mut pool.user_records {
-                    user_record.voting_power = (user_record.amount as f64 / pool.total_balance as f64) * 100.0;
-                }
-                pool.status = Status::VOTING;
-                self.pool_metadata_by_id.insert(&pool_id, &pool);
-                pool
-            } else {
-                env::panic_str("Voting cannot start before the pledge start time.");
+        let current_time = env::block_timestamp();
+        if current_time > pool.time_start_pledge {
+            for user_record in &mut pool.user_records {
+                user_record.voting_power = ((user_record.amount as f64 / pool.total_balance as f64) * 100.0);
             }
+            pool.status = Status::VOTING;
+            self.pool_metadata_by_id.insert(&pool_id, &pool);
+            pool
+        } else {
+            env::panic_str("Voting cannot start before the pledge start time.");
+        }
         } else {
             env::panic_str("Pool with the given ID does not exist.");
         }
     }
 
     fn change_pool_infor(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64) {
+        let signer_id = env::signer_account_id();
         
+        if signer_id != self.owner_id {
+            env::panic_str("Only admin can change pool information.");
+        }
+
         if let Some(mut pool) = self.pool_metadata_by_id.get(&pool_id) {
-            if env::signer_account_id() != pool.creator_id {
-                env::panic_str("Only the creator of the pool can change its information.");
+            // Validate time constraints
+            if time_start_pledge >= time_end_pledge {
+                env::panic_str("End time must be after start time");
             }
+
+            if time_start_pledge <= env::block_timestamp() {
+                env::panic_str("Start time must be in the future");
+            }
+
             pool.campaign_id = campaign_id;
             pool.time_start_pledge = time_start_pledge;
             pool.time_end_pledge = time_end_pledge;
+            
             self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+            env::log_str(&format!(
+                "Pool {} information updated by admin {}",
+                pool_id,
+                signer_id
+            ));
         } else {
             env::panic_str("Pool with the given ID does not exist.");
         }
