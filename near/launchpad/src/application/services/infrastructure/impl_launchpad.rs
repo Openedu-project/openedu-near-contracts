@@ -96,7 +96,6 @@ impl LaunchpadFeature for Launchpad {
         }
 
         if let Some(mut pool) = self.pool_metadata_by_id.get(&pool_id) {
-            // Validate time constraints
             if time_start_pledge >= time_end_pledge {
                 env::panic_str("End time must be after start time");
             }
@@ -148,7 +147,7 @@ impl LaunchpadFeature for Launchpad {
                 pool.total_balance -= user_record.amount;
 
                 env::log_str(&format!(
-                    "Refunded {} tokens to user {}. Remaining pool balance: {}",
+                    "Refunded {} tokens to user {}. Pool balance: {}",
                     user_record.amount,
                     user_record.user_id,
                     pool.total_balance
@@ -161,8 +160,14 @@ impl LaunchpadFeature for Launchpad {
             pool.user_records.clear();
             
             env::log_str(&format!(
-                "Pool {} has been closed and all funds refunded",
+                "Pool {} has been closed - all funds refunded",
                 pool_id
+            ));
+        } else {
+            env::log_str(&format!(
+                "Pool {} partial refund completed. Remaining balance: {}",
+                pool_id,
+                pool.total_balance
             ));
         }
         
@@ -336,10 +341,12 @@ impl LaunchpadFeature for Launchpad {
     }
     // admin can set min staking amount
     fn set_min_staking_amount(&mut self, amount: U128) {
+        // Only admin can set minimum staking amount
         if env::signer_account_id() != self.owner_id {
             env::panic_str("Only admin can set minimum staking amount");
         }
 
+        // Ensure minimum amount is at least 1 NEAR
         if amount.0 < DEFAULT_MIN_STAKING {
             env::panic_str("Minimum staking cannot be less than 1 NEAR");
         }
