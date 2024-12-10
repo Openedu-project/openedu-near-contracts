@@ -145,26 +145,28 @@ impl LaunchpadFeature for Launchpad {
                         U128(user_record.amount),
                     );
 
+                pool.total_balance -= user_record.amount;
+
                 env::log_str(&format!(
-                    "Refunded {} tokens to user {}",
+                    "Refunded {} tokens to user {}. Remaining pool balance: {}",
                     user_record.amount,
-                    user_record.user_id
+                    user_record.user_id,
+                    pool.total_balance
                 ));
             }
         }
 
-        // Update pool status and clear data
-        pool.status = Status::CLOSED;
-        pool.total_balance = 0;
-        pool.user_records.clear();
+        if pool.total_balance == 0 {
+            pool.status = Status::CLOSED;
+            pool.user_records.clear();
+            
+            env::log_str(&format!(
+                "Pool {} has been closed and all funds refunded",
+                pool_id
+            ));
+        }
         
-        // Update pool metadata
         self.pool_metadata_by_id.insert(&pool_id, &pool);
-
-        env::log_str(&format!(
-            "Pool {} has been closed and all funds refunded",
-            pool_id
-        ));
     }
 
     fn ft_on_transfer(
