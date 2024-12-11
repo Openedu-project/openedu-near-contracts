@@ -150,8 +150,20 @@ impl Contract {
         token_id: TokenId,
         token_metadata: TokenMetadata,
         receiver_id: AccountId,
+        course_id: CourseId
     ) -> Token {
-        let before_storage = env::storage_usage();
+        
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.tokens.owner_id,
+            "Unauthorized"
+        );
+
+        let mut course_metadata = self.course_metadata_by_id.get(&course_id)
+            .expect("Course metadata not found");
+        
+            let before_storage = env::storage_usage();
+        
         // Mint NFT
         let token = self.tokens.internal_mint(token_id, receiver_id, Some(token_metadata));
         // Calculate storage fees
@@ -166,6 +178,19 @@ impl Contract {
         let used_tgas = env::used_gas().0 as u128 / u128::pow(10, 12); // Convert gas units to TGas
         let gas_cost = (used_tgas + additional_tgas) * price_per_tgas;
         let total_gas_cost = gas_cost + storage_cost;
+
+        // Retrieve the current balance for the sponsor_id and course_id
+
+        // Deduct the total_gas_cost from the sponsor's balance
+        if course_metadata.sponsor_balance < total_gas_cost {
+            // If the balance is insufficient, set the balance to 0
+            course_metadata.sponsor_balance = 0;
+        } else {
+            course_metadata.sponsor_balance -= total_gas_cost;
+        }
+
+        // Update the course metadata with the new balance
+        self.course_metadata_by_id.insert(&course_id, &course_metadata);
 
         // Log transaction details
         log!(
