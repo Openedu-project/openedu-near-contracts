@@ -1,8 +1,8 @@
 [package]
 name = "nft_25519"
-version = "1.1.0"
+edition = "2021"
+version = "0.1.0"
 authors = ["Near Inc <hello@near.org>"]
-edition = "2018"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
