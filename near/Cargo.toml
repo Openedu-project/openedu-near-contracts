@@ -5,7 +5,7 @@ members = [
     "ft_token",
     "launchpad",
     "integration-tests",
-#    "nft_25519"
+    "nft_25519"
 ]
 
 [profile.release]
