@@ -302,6 +302,16 @@ impl Contract {
         );
     }
 
+    pub fn change_admin_pubkey(&mut self, new_pubkey: String) {
+        let caller_id = env::predecessor_account_id();
+        let owner_id = self.tokens.owner_id.clone();
+
+        assert_eq!(caller_id, owner_id, "Only the NFT owner can change the admin public key.");
+
+        self.admin_pub_key = new_pubkey.clone();
+        log!("Admin public key changed to {}", new_pubkey);
+    }
+
     pub fn get_sponsor_balance(&self, course_id: CourseId, sponsor_id: AccountId) -> Option<u128> {
         if let Some(record) = self.course_metadata_by_id.get(&course_id) {
             if record.creator_id == sponsor_id {
