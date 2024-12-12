@@ -1,20 +1,5 @@
-/*!
-Non-Fungible Token implementation with JSON serialization.
-NOTES:
-  - The maximum balance value is limited by U128 (2**128 - 1).
-  - JSON calls should pass U128 as a base-10 string. E.g. "100".
-  - The contract optimizes the inner trie structure by hashing account IDs. It will prevent some
-    abuse of deep tries. Shouldn't be an issue, once NEAR clients implement full hashing of keys.
-  - The contract tracks the change in storage before and after the call. If the storage increases,
-    the contract requires the caller of the contract to attach enough deposit to the function call
-    to cover the storage cost.
-    This is done to prevent a denial of service attack on the contract by taking all available storage.
-    If the storage decreases, the contract will issue a refund for the cost of the released storage.
-    The unused tokens from the attached deposit are also refunded, so it's safe to
-    attach more deposit than required.
-  - To prevent the deployed contract from being modified or deleted, it should not have any access
-    keys on its account.
-*/
+// NEAR OPENEDU NFT CERTIFICATE CONTRACT
+// NEP 171 STANDARD IMPLEMENTATION
 use near_contract_standards::non_fungible_token::metadata::{
     NFTContractMetadata, NonFungibleTokenMetadataProvider, TokenMetadata, NFT_METADATA_SPEC,
 };
@@ -78,8 +63,8 @@ impl Contract {
             owner_id,
             NFTContractMetadata {
                 spec: NFT_METADATA_SPEC.to_string(),
-                name: "Example NEAR non-fungible token".to_string(),
-                symbol: "EXAMPLE".to_string(),
+                name: "OpenEdu Certificates".to_string(),
+                symbol: "OPENEDUCERT".to_string(),
                 icon: Some(DATA_IMAGE_SVG_NEAR_ICON.to_string()),
                 base_uri: None,
                 reference: None,
@@ -302,6 +287,7 @@ impl Contract {
         );
     }
 
+    // đổi thành internal
     pub fn change_admin_pubkey(&mut self, new_pubkey: String) {
         let caller_id = env::predecessor_account_id();
         let owner_id = self.tokens.owner_id.clone();
