@@ -36,6 +36,12 @@ near view $PAYMENT get_all_token_id
 ## NFT-Ed25519
 ```bash
 near deploy $NFT ./target/wasm32-unknown-unknown/release/nft_25519.wasm
+
+near call nft-2.testnet deposit_sponsor '{"course_id": "test1"}' --accountId creator1.testnet --deposit 0.1
+
+near view nft-2.testnet get_sponsor_balance '{"course_id": "test1", "sponsor_id": "creator1.testnet"}'
+
+near call nft-2.testnet withdraw_sponsor '{"course_id": "test1", "amount": 100000000000}' --accountId creator1.testnet
 ```
 
 ## Launchpad
