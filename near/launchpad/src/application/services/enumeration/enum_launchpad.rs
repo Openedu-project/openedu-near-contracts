@@ -6,6 +6,8 @@ use crate::models::{
 };
 
 #[near_bindgen]
+
+// todo: LaunchpadGet (enum tưởng constant hardcode) 
 impl LaunchpadEnum for Launchpad {
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>> {
         if self.all_pool_id.is_empty() {

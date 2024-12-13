@@ -76,6 +76,8 @@ impl LaunchpadFeature for Launchpad {
         if current_time > pool.time_start_pledge {
             for user_record in &mut pool.user_records {
                 user_record.voting_power = ((user_record.amount as f64 / pool.total_balance as f64) * 100.0);
+
+                // example: (7.000/100.000) * 100 = 7% 
             }
             pool.status = Status::VOTING;
             self.pool_metadata_by_id.insert(&pool_id, &pool);
@@ -88,6 +90,8 @@ impl LaunchpadFeature for Launchpad {
         }
     }
 
+    // todo: change to change_pool_funding_time
+    // todo: chỉ trong status: init mới có thể thay đổi
     fn change_pool_infor(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64) {
         let signer_id = env::signer_account_id();
         
@@ -104,6 +108,7 @@ impl LaunchpadFeature for Launchpad {
                 env::panic_str("Start time must be in the future");
             }
 
+            // todo: một pool gắn với một campaign thì không cần thay đổi
             pool.campaign_id = campaign_id;
             pool.time_start_pledge = time_start_pledge;
             pool.time_end_pledge = time_end_pledge;
@@ -120,6 +125,8 @@ impl LaunchpadFeature for Launchpad {
         }
     }
 
+    // todo: fix refund logic tối ưu gas fee, không dùng vec
+    // https://claude.ai/chat/db6a505f-62b9-4b26-bd06-dd5c0ebea462
     fn refund(&mut self, pool_id: PoolId) {
         let signer_id = env::signer_account_id();
         
@@ -144,7 +151,10 @@ impl LaunchpadFeature for Launchpad {
                         U128(user_record.amount),
                     );
 
-                pool.total_balance -= user_record.amount;
+                // todo: fix công thức
+                pool.total_balance -= (user_record.amount);
+                // (user voting power / 100) * total_balance
+                // example: (7 / 100) * 75.000 = 5.250
 
                 env::log_str(&format!(
                     "Refunded {} tokens to user {}. Pool balance: {}",
@@ -278,6 +288,7 @@ impl LaunchpadFeature for Launchpad {
 
         env::log_str(&format!("Token with ID {} has been deleted.", token_id));
     }
+
     // admin can approve pool
     fn approve_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
         if env::signer_account_id() != self.owner_id {
@@ -302,6 +313,7 @@ impl LaunchpadFeature for Launchpad {
 
         pool
     }
+
     // admin can reject pool
     fn reject_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
         if env::signer_account_id() != self.owner_id {
@@ -339,6 +351,7 @@ impl LaunchpadFeature for Launchpad {
 
         pool
     }
+
     // admin can set min staking amount
     fn set_min_staking_amount(&mut self, amount: U128) {
         // Only admin can set minimum staking amount
@@ -359,6 +372,7 @@ impl LaunchpadFeature for Launchpad {
             amount.0 / DEFAULT_MIN_STAKING
         ));
     }
+
     // get min staking amount right now
     fn get_min_staking_amount(&self) -> U128 {
         U128(self.min_staking_amount)
@@ -381,8 +395,18 @@ impl LaunchpadFeature for Launchpad {
             percent
         ));
     }
+
     // get refund percentage for rejected pools right now
     fn get_refund_reject_pool(&self) -> u8 {
         self.refund_percent
     }
+
+    // todo: admin can withdraw pool.total_balance to creator
+    // theo amount.
+
+    // todo: chia theo từng loại function, admin func, user func, getter func
+
+    /*//////////////////////////////////////////////////////////////
+                            ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 }
