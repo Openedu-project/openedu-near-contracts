@@ -1,4 +1,4 @@
-use near_sdk::{near_bindgen, AccountId};
+use near_sdk::{near_bindgen, AccountId, json_types::U128};
 
 use crate::models::{
     contract::{Launchpad, LaunchpadGet, LaunchpadExt, PoolMetadata, Status, UserTokenDepositRecord}, 

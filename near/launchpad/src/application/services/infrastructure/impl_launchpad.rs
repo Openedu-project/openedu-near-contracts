@@ -20,7 +20,7 @@ impl LaunchpadFeature for Launchpad {
 
     // todo: change to change_pool_funding_time
     // todo: chỉ trong status: init mới có thể thay đổi
-    fn change_pool_infor(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64) {
+    fn change_pool_funding_time(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64) {
         let signer_id = env::signer_account_id();
         
         if signer_id != self.owner_id {
@@ -28,6 +28,10 @@ impl LaunchpadFeature for Launchpad {
         }
 
         if let Some(mut pool) = self.pool_metadata_by_id.get(&pool_id) {
+            if pool.status != Status::INIT {
+                env::panic_str("Pool status must be INIT to change funding time.");
+            }
+            
             if time_start_pledge >= time_end_pledge {
                 env::panic_str("End time must be after start time");
             }
