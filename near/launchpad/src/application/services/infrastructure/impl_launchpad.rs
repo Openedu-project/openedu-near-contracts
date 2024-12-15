@@ -267,6 +267,44 @@ impl LaunchpadFeature for Launchpad {
         self.pool_metadata_by_id.insert(&pool_id, &pool);
     }
 
+    fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128) {
+        let signer_id = env::signer_account_id();
+
+        if signer_id != self.owner_id {
+            env::panic_str("Only admin can withdraw funds to the creator.");
+        }
+
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if pool.status != Status::CLOSED {
+            env::panic_str("Pool must be CLOSED to withdraw funds.");
+        }
+
+        if amount.0 > pool.total_balance {
+            env::panic_str("Insufficient pool balance for the requested withdrawal amount.");
+        }
+
+        pool.total_balance -= amount.0;
+
+        cross_edu::ext(pool.token_id.clone())
+            .with_static_gas(GAS_FOR_FT_TRANSFER_CALL)
+            .with_attached_deposit(1)
+            .ft_transfer(
+                pool.creator_id.clone(),
+                amount,
+            );
+
+        env::log_str(&format!(
+            "Withdrawn {} tokens to creator {}. Remaining pool balance: {}",
+            amount.0,
+            pool.creator_id,
+            pool.total_balance
+        ));
+
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+    }
+
     /* //////////////////////////////////////////////////////////////
                             USER FUNCTIONS
     ////////////////////////////////////////////////////////////// */
@@ -407,14 +445,5 @@ impl LaunchpadFeature for Launchpad {
         PromiseOrValue::Value(U128(0))
     }
 
-
-    // todo: admin can withdraw pool.total_balance to creator
-    // theo amount.
-
-    // todo: chia theo từng loại function, admin func, user func, getter func
-
-    /* //////////////////////////////////////////////////////////////
-                            ADMIN FUNCTIONS
-    ////////////////////////////////////////////////////////////// */
 
 }
