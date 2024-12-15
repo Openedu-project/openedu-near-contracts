@@ -18,8 +18,6 @@ impl LaunchpadFeature for Launchpad {
                             ADMIN FUNCTIONS
     ////////////////////////////////////////////////////////////// */
 
-    // todo: change to change_pool_funding_time
-    // todo: chỉ trong status: init mới có thể thay đổi
     fn change_pool_funding_time(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64) {
         let signer_id = env::signer_account_id();
         
@@ -40,8 +38,6 @@ impl LaunchpadFeature for Launchpad {
                 env::panic_str("Start time must be in the future");
             }
 
-            // todo: một pool gắn với một campaign thì không cần thay đổi
-            pool.campaign_id = campaign_id;
             pool.time_start_pledge = time_start_pledge;
             pool.time_end_pledge = time_end_pledge;
             
