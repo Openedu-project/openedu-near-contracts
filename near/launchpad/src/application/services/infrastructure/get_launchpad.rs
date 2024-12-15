@@ -1,14 +1,18 @@
 use near_sdk::{near_bindgen, AccountId};
 
 use crate::models::{
-    contract::{Launchpad, LaunchpadEnum, LaunchpadExt, PoolMetadata, Status, UserTokenDepositRecord}, 
+    contract::{Launchpad, LaunchpadGet, LaunchpadExt, PoolMetadata, Status, UserTokenDepositRecord}, 
     PoolId
 };
 
 #[near_bindgen]
 
-// todo: LaunchpadGet (enum tưởng constant hardcode) 
-impl LaunchpadEnum for Launchpad {
+impl LaunchpadGet for Launchpad {
+
+    /* //////////////////////////////////////////////////////////////
+                            GETTER FUNCTIONS
+    ////////////////////////////////////////////////////////////// */
+
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>> {
         if self.all_pool_id.is_empty() {
             return None;
@@ -134,5 +138,15 @@ impl LaunchpadEnum for Launchpad {
         self.pool_metadata_by_id.get(&pool_id).map(|pool| {
             pool.total_balance
         })
+    }
+
+    // get refund percentage for rejected pools right now
+    fn get_refund_reject_pool(&self) -> u8 {
+        self.refund_percent
+    }
+
+     // get min staking amount right now
+     fn get_min_staking_amount(&self) -> U128 {
+        U128(self.min_staking_amount)
     }
 }

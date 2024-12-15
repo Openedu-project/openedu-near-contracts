@@ -80,39 +80,30 @@ pub trait LaunchpadFeature {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128>;
-
     fn start_voting(&mut self, pool_id: PoolId) -> PoolMetadata;
-
     fn change_pool_infor(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64);
     fn refund(&mut self, pool_id: PoolId);
-
-
     fn add_token(
         &mut self,
         token_id: String,
     );
-
     fn change_admin(
         &mut self,
         new_admin: AccountId
     );
-
     fn delete_token_by_token_id(
         &mut self,
         token_id: AccountId
     );
-
     fn set_min_staking_amount(&mut self, amount: U128);
-    fn get_min_staking_amount(&self) -> U128;
-
     fn set_refund_reject_pool(&mut self, percent: u8);
-    fn get_refund_reject_pool(&self) -> u8;
-
     fn approve_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
     fn reject_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
 }
 
-pub trait LaunchpadEnum {
+pub trait LaunchpadGet {
+    fn get_min_staking_amount(&self) -> U128;
+    fn get_refund_reject_pool(&self) -> u8;
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>>;
     fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<AccountId>>;
     fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>>;
