@@ -50,6 +50,10 @@ impl PoolMetadata {
         time_end_pledge: u64,
         mint_multiple_pledge: u8,
     ) -> Self {
+        let prefix = LaunchpadStorageKey::UserRecords { pool_id }
+            .try_to_vec()
+            .unwrap();
+            
         Self {
             pool_id,
             campaign_id,
@@ -61,7 +65,7 @@ impl PoolMetadata {
             time_start_pledge,
             time_end_pledge,
             mint_multiple_pledge,
-            user_records: UnorderedMap::new(LaunchpadStorageKey::UserRecords { pool_id }.try_to_vec().unwrap()),
+            user_records: UnorderedMap::new(prefix),
         }
     }
 }
