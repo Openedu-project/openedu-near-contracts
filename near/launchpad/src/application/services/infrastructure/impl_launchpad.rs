@@ -1,4 +1,5 @@
 use near_sdk::{env, json_types::U128, near_bindgen, AccountId, Gas, PromiseOrValue, Promise};
+use near_sdk::collections::UnorderedMap;
 
 use crate::models::{
     contract::{Assets, Launchpad, LaunchpadExt, LaunchpadFeature, PoolMetadata, Status, UserTokenDepositRecord, DEFAULT_MIN_STAKING}, 
@@ -44,19 +45,16 @@ impl LaunchpadFeature for Launchpad {
             env::panic_str("Start time must be in the future");
         }
         
-        let pool = PoolMetadata {
+        let pool = PoolMetadata::new(
             pool_id,
             campaign_id,
-            creator_id: creator_id.clone(),
+            creator_id.clone(),
             staking_amount,
-            status: Status::INIT,
-            token_id: token_id.clone(),
-            total_balance: 0,
+            token_id.clone(),
             time_start_pledge,
             time_end_pledge,
             mint_multiple_pledge,
-            user_records: Vec::new(),
-        };
+        );
 
         self.all_pool_id.insert(&pool_id);
         self.pool_metadata_by_id.insert(&pool_id, &pool);
@@ -74,10 +72,8 @@ impl LaunchpadFeature for Launchpad {
         if let Some(mut pool) = self.pool_metadata_by_id.get(&pool_id) {
         let current_time = env::block_timestamp();
         if current_time > pool.time_start_pledge {
-            for user_record in &mut pool.user_records {
-                user_record.voting_power = ((user_record.amount as f64 / pool.total_balance as f64) * 100.0);
-
-                // example: (7.000/100.000) * 100 = 7% 
+            for (_, mut user_record) in pool.user_records.iter() {
+                user_record.voting_power = (user_record.amount as f64 / pool.total_balance as f64) * 100.0;
             }
             pool.status = Status::VOTING;
             self.pool_metadata_by_id.insert(&pool_id, &pool);
@@ -141,29 +137,28 @@ impl LaunchpadFeature for Launchpad {
             env::panic_str("Pool must be in FUNDING or WAITING status to be refunded");
         }
 
-        for user_record in &pool.user_records {
-            if user_record.amount > 0 {
+        let mut total_refunded: u128 = 0;
+        for (user_id, record) in pool.user_records.iter() {
+            if record.amount > 0 {
                 cross_edu::ext(pool.token_id.clone())
                     .with_static_gas(GAS_FOR_FT_TRANSFER_CALL)
                     .with_attached_deposit(1)
                     .ft_transfer(
-                        user_record.user_id.clone(),
-                        U128(user_record.amount),
+                        user_id.clone(),
+                        U128(record.amount),
                     );
 
-                // todo: fix công thức
-                pool.total_balance -= (user_record.amount);
-                // (user voting power / 100) * total_balance
-                // example: (7 / 100) * 75.000 = 5.250
+                total_refunded += record.amount;
 
                 env::log_str(&format!(
-                    "Refunded {} tokens to user {}. Pool balance: {}",
-                    user_record.amount,
-                    user_record.user_id,
-                    pool.total_balance
+                    "Refunded {} tokens to user {}",
+                    record.amount,
+                    user_id
                 ));
             }
         }
+
+        pool.total_balance -= total_refunded;
 
         if pool.total_balance == 0 {
             pool.status = Status::CLOSED;
@@ -218,17 +213,11 @@ impl LaunchpadFeature for Launchpad {
         }
 
         let amount_value = amount.0;
-        if let Some(user_record) = pool.user_records.iter_mut()
-            .find(|record| record.user_id == sender_id) 
-        {
-            user_record.amount += amount_value;
-        } else {
-            pool.user_records.push(UserTokenDepositRecord {
-                user_id: sender_id.clone(),
-                amount: amount_value,
-                voting_power: 0.0, 
-            });
-        }
+        pool.user_records.insert(&sender_id, &UserTokenDepositRecord {
+            user_id: sender_id.clone(),
+            amount: amount_value,
+            voting_power: 0.0,
+        });
 
         pool.total_balance += amount_value;
 
@@ -406,7 +395,4 @@ impl LaunchpadFeature for Launchpad {
 
     // todo: chia theo từng loại function, admin func, user func, getter func
 
-    /*//////////////////////////////////////////////////////////////
-                            ADMIN FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
 }

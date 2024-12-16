@@ -1,6 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{
-    collections::{LookupMap, UnorderedSet},
+    collections::{LookupMap, UnorderedSet, UnorderedMap},
     near_bindgen,
     serde::{Deserialize, Serialize},
     AccountId, PanicOnDefault,
@@ -24,8 +24,7 @@ pub struct Launchpad {
     pub refund_percent: u8,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct PoolMetadata {
     pub pool_id: PoolId,
     pub campaign_id: String,
@@ -37,7 +36,34 @@ pub struct PoolMetadata {
     pub time_start_pledge: u64,
     pub time_end_pledge: u64,
     pub mint_multiple_pledge: u8,
-    pub user_records: Vec<UserTokenDepositRecord>
+    pub user_records: UnorderedMap<AccountId, UserTokenDepositRecord>
+}
+
+impl PoolMetadata {
+    pub fn new(
+        pool_id: PoolId,
+        campaign_id: String,
+        creator_id: AccountId,
+        staking_amount: u128,
+        token_id: AccountId,
+        time_start_pledge: u64,
+        time_end_pledge: u64,
+        mint_multiple_pledge: u8,
+    ) -> Self {
+        Self {
+            pool_id,
+            campaign_id,
+            creator_id,
+            staking_amount,
+            status: Status::INIT,
+            token_id,
+            total_balance: 0,
+            time_start_pledge,
+            time_end_pledge,
+            mint_multiple_pledge,
+            user_records: UnorderedMap::new(LaunchpadStorageKey::UserRecords { pool_id }.try_to_vec().unwrap()),
+        }
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
@@ -68,7 +94,8 @@ pub struct UserTokenDepositRecord {
 #[derive(BorshSerialize)]
 pub enum LaunchpadStorageKey {
     AllPoolId,
-    PoolMetadataById
+    PoolMetadataById,
+    UserRecords { pool_id: PoolId },
 }
 
 pub trait LaunchpadFeature {

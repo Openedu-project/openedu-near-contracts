@@ -25,13 +25,15 @@ impl LaunchpadEnum for Launchpad {
     
     fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<AccountId>> {
         self.pool_metadata_by_id.get(&pool_id).map(|pool| {
-            pool.user_records.iter().map(|record| record.user_id.clone()).collect()
+            pool.user_records.keys()
+                .collect()
         })
     }
 
     fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>> {
         self.pool_metadata_by_id.get(&pool_id).map(|pool| {
-            pool.user_records.clone()
+            pool.user_records.values()
+                .collect()
         })
     }
 
