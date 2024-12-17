@@ -1,7 +1,7 @@
 use near_sdk::{near_bindgen, AccountId, json_types::U128};
 
 use crate::models::{
-    contract::{Launchpad, LaunchpadGet, LaunchpadExt, PoolMetadata, Status, UserTokenDepositRecord}, 
+    contract::{Launchpad, LaunchpadGet, LaunchpadExt, PoolMetadata, Status, UserTokenDepositRecord, UserRecordDetail}, 
     PoolId
 };
 
@@ -147,5 +147,25 @@ impl LaunchpadGet for Launchpad {
      // get min staking amount right now
      fn get_min_staking_amount(&self) -> U128 {
         U128(self.min_staking_amount)
+    }
+
+    fn get_user_records_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserRecordDetail>> {
+        if let Some(user_records) = self.user_records.get(&pool_id) {
+            let records: Vec<UserRecordDetail> = user_records
+                .iter()
+                .map(|(user_id, record)| UserRecordDetail {
+                    user_id,
+                    record: record.clone(),
+                })
+                .collect();
+
+            if records.is_empty() {
+                None
+            } else {
+                Some(records)
+            }
+        } else {
+            None
+        }
     }
 }

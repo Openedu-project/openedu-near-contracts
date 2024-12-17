@@ -66,6 +66,13 @@ pub struct UserTokenDepositRecord {
     pub voting_power: f64, // 0
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct UserRecordDetail {
+    pub user_id: AccountId,
+    pub record: UserTokenDepositRecord,
+}
+
 #[derive(BorshSerialize)]
 pub enum LaunchpadStorageKey {
     AllPoolId,
@@ -125,4 +132,5 @@ pub trait LaunchpadGet {
     fn get_all_waiting_pools(&self) -> Option<Vec<PoolMetadata>>;
     fn get_detail_pool(&self, pool_id: PoolId) -> Option<PoolMetadata>;
     fn get_balance_creator(&self, pool_id: PoolId) -> Option<u128>;
+    fn get_user_records_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserRecordDetail>>;
 }
