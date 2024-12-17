@@ -53,3 +53,14 @@ near call $NFT withdraw_sponsor '{"course_id": "test1", "amount": 100000000000}'
 ```
 
 ## Launchpad
+
+```bash
+near deploy $LAUCNHPAD ./target/wasm32-unknown-unknown/release/launchpad.wasm
+near call $LAUNCHPAD init --accountId $ADMIN
+# Admin add author & add token 
+near call $LAUNCHPAD add_token '{"token_id": "'$TOKEN_ID'"}' --accountId $ADMIN
+near call $LAUNCHPAD change_admin '{"new_admin": "''"}' --accountId $ADMIN
+near call $LAUNCHPAD delete_token_by_token_id '{"token_id": ""}' --accountId $ADMIN
+
+
+```

@@ -6,7 +6,6 @@ use crate::models::{
 };
 
 #[near_bindgen]
-
 impl LaunchpadGet for Launchpad {
 
     /* //////////////////////////////////////////////////////////////
@@ -27,15 +26,15 @@ impl LaunchpadGet for Launchpad {
         }
     }
     
-    fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<AccountId>> {
-        self.pool_metadata_by_id.get(&pool_id).map(|pool| {
-            pool.user_records.iter().map(|record| record.user_id.clone()).collect()
-        })
+    fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<PoolMetadata>> {
+        self.pool_metadata_by_id.get(&pool_id).map(|pool| vec![pool])
     }
 
     fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>> {
-        self.pool_metadata_by_id.get(&pool_id).map(|pool| {
-            pool.user_records.clone()
+        self.user_records.get(&pool_id).map(|user_records| {
+            user_records.iter()
+                .map(|(_, record)| record.clone()) // Clone giá trị
+                .collect()
         })
     }
 

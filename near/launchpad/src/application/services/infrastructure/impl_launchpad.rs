@@ -5,11 +5,15 @@ use crate::models::{
     ft_request::external::cross_edu, 
     PoolId
 };
+use near_sdk::collections::{LookupMap, UnorderedMap};
+use near_sdk::PromiseResult;
+
 
 pub const GAS_FOR_CROSS_CALL: Gas = Gas(3_000_000_000_000);
 pub const GAS_FOR_FT_TRANSFER_CALL: Gas = Gas(300_000_000_000_000);
 pub const ATTACHED_TRANSFER_FT: u128 = 1;
 pub const ATTACHED_STORAGE_DEPOSIT: u128 = 1_250_000_000_000_000_000_000;
+pub const GAS_FOR_REFUND_CALLBACK: Gas = Gas(5_000_000_000_000);
 
 #[near_bindgen]
 impl LaunchpadFeature for Launchpad {
@@ -207,66 +211,7 @@ impl LaunchpadFeature for Launchpad {
             percent
         ));
     }
-
-    // todo: fix refund logic tối ưu gas fee, không dùng vec
-    // https://claude.ai/chat/db6a505f-62b9-4b26-bd06-dd5c0ebea462
-    fn refund(&mut self, pool_id: PoolId) {
-        let signer_id = env::signer_account_id();
-        
-        if signer_id != self.owner_id {
-            env::panic_str("Only admin can initiate refunds");
-        }
-
-        let mut pool = self.pool_metadata_by_id.get(&pool_id)
-            .expect("Pool does not exist");
-
-        if !matches!(pool.status, Status::FUNDING | Status::WAITING) {
-            env::panic_str("Pool must be in FUNDING or WAITING status to be refunded");
-        }
-
-        for user_record in &pool.user_records {
-            if user_record.amount > 0 {
-                cross_edu::ext(pool.token_id.clone())
-                    .with_static_gas(GAS_FOR_FT_TRANSFER_CALL)
-                    .with_attached_deposit(1)
-                    .ft_transfer(
-                        user_record.user_id.clone(),
-                        U128(user_record.amount),
-                    );
-
-                // todo: fix công thức
-                pool.total_balance -= (user_record.amount);
-                // (user voting power / 100) * total_balance
-                // example: (7 / 100) * 75.000 = 5.250
-
-                env::log_str(&format!(
-                    "Refunded {} tokens to user {}. Pool balance: {}",
-                    user_record.amount,
-                    user_record.user_id,
-                    pool.total_balance
-                ));
-            }
-        }
-
-        if pool.total_balance == 0 {
-            pool.status = Status::CLOSED;
-            pool.user_records.clear();
-            
-            env::log_str(&format!(
-                "Pool {} has been closed - all funds refunded",
-                pool_id
-            ));
-        } else {
-            env::log_str(&format!(
-                "Pool {} partial refund completed. Remaining balance: {}",
-                pool_id,
-                pool.total_balance
-            ));
-        }
-        
-        self.pool_metadata_by_id.insert(&pool_id, &pool);
-    }
-
+    
     fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128) {
         let signer_id = env::signer_account_id();
 
@@ -324,7 +269,7 @@ impl LaunchpadFeature for Launchpad {
             ));
         }
 
-        // allowed list
+        // Check if the token is in the allowed list
         if !self.list_assets.iter().any(|asset| asset.token_id == token_id) {
             env::panic_str(&format!(
                 "Token {} is not supported. Only tokens added by admin can be used for pools",
@@ -351,7 +296,6 @@ impl LaunchpadFeature for Launchpad {
             time_start_pledge,
             time_end_pledge,
             mint_multiple_pledge,
-            user_records: Vec::new(),
         };
 
         self.all_pool_id.insert(&pool_id);
@@ -363,27 +307,6 @@ impl LaunchpadFeature for Launchpad {
         ));
 
         pool
-    }
-
-
-    fn start_voting(&mut self, pool_id: PoolId) -> PoolMetadata {
-        if let Some(mut pool) = self.pool_metadata_by_id.get(&pool_id) {
-        let current_time = env::block_timestamp();
-        if current_time > pool.time_start_pledge {
-            for user_record in &mut pool.user_records {
-                user_record.voting_power = ((user_record.amount as f64 / pool.total_balance as f64) * 100.0);
-
-                // example: (7.000/100.000) * 100 = 7% 
-            }
-            pool.status = Status::VOTING;
-            self.pool_metadata_by_id.insert(&pool_id, &pool);
-            pool
-        } else {
-            env::panic_str("Voting cannot start before the pledge start time.");
-        }
-        } else {
-            env::panic_str("Pool with the given ID does not exist.");
-        }
     }
 
 
@@ -421,22 +344,22 @@ impl LaunchpadFeature for Launchpad {
         }
 
         let amount_value = amount.0;
-        if let Some(user_record) = pool.user_records.iter_mut()
-            .find(|record| record.user_id == sender_id) 
-        {
-            user_record.amount += amount_value;
-        } else {
-            pool.user_records.push(UserTokenDepositRecord {
-                user_id: sender_id.clone(),
-                amount: amount_value,
-                voting_power: 0.0, 
-            });
-        }
-
+        let mut user_records = self.user_records.get(&pool_id).unwrap_or_else(|| {
+            UnorderedMap::new(format!("user_records_{}", pool_id).as_bytes())
+        });
+        
+        let mut user_record = user_records.get(&sender_id).unwrap_or(UserTokenDepositRecord {
+            amount: 0,
+            voting_power: 0.0,
+        });
+        
+        user_record.amount += amount_value;
+        user_records.insert(&sender_id, &user_record);
+        self.user_records.insert(&pool_id, &user_records);
+        
         pool.total_balance += amount_value;
-
         self.pool_metadata_by_id.insert(&pool_id, &pool);
-
+        
         env::log_str(&format!(
             "User {} pledged {} tokens to pool {}",
             sender_id, amount_value, pool_id

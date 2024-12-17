@@ -26,6 +26,7 @@ impl Launchpad {
             pool_metadata_by_id: LookupMap::new(LaunchpadStorageKey::PoolMetadataById.try_to_vec().unwrap()),
             min_staking_amount: DEFAULT_MIN_STAKING,
             refund_percent: 0,
+            user_records: LookupMap::new(LaunchpadStorageKey::UserRecords.try_to_vec().unwrap())
         }
     }
 }
