@@ -1,13 +1,15 @@
 use near_sdk::{env, json_types::U128, near_bindgen, AccountId, Gas, PromiseOrValue, Promise};
 
 use crate::models::{
-    contract::{Assets, Launchpad, LaunchpadExt, LaunchpadFeature, PoolMetadata, Status, UserTokenDepositRecord, DEFAULT_MIN_STAKING}, 
+    contract::{
+        Assets, Launchpad, LaunchpadExt, LaunchpadFeature, 
+        PoolMetadata, Status, UserTokenDepositRecord, 
+        DEFAULT_MIN_STAKING, LaunchpadStorageKey
+    }, 
     ft_request::external::cross_edu, 
     PoolId
 };
-use near_sdk::collections::{LookupMap, UnorderedMap};
-use near_sdk::PromiseResult;
-
+use near_sdk::collections::{UnorderedMap};
 
 pub const GAS_FOR_CROSS_CALL: Gas = Gas(3_000_000_000_000);
 pub const GAS_FOR_FT_TRANSFER_CALL: Gas = Gas(300_000_000_000_000);
@@ -344,15 +346,24 @@ impl LaunchpadFeature for Launchpad {
         }
 
         let amount_value = amount.0;
-        let mut user_records = self.user_records.get(&pool_id).unwrap_or_else(|| {
-            UnorderedMap::new(format!("user_records_{}", pool_id).as_bytes())
-        });
-        
-        let mut user_record = user_records.get(&sender_id).unwrap_or(UserTokenDepositRecord {
-            amount: 0,
-            voting_power: 0.0,
-        });
-        
+        let mut user_records = if let Some(records) = self.user_records.get(&pool_id) {
+            records
+        } else {
+            let prefix = LaunchpadStorageKey::user_records_prefix(pool_id);
+            let map = UnorderedMap::new(prefix);
+            self.user_records.insert(&pool_id, &map);
+            map
+        };
+
+        let mut user_record = if let Some(record) = user_records.get(&sender_id) {
+            record
+        } else {
+            UserTokenDepositRecord {
+                amount: 0,
+                voting_power: 0.0,
+            }
+        };
+
         user_record.amount += amount_value;
         user_records.insert(&sender_id, &user_record);
         self.user_records.insert(&pool_id, &user_records);

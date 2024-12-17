@@ -70,7 +70,17 @@ pub struct UserTokenDepositRecord {
 pub enum LaunchpadStorageKey {
     AllPoolId,
     PoolMetadataById,
-    UserRecords,
+    UserRecordsMap,
+    UserRecordsById { pool_id: PoolId },
+}
+
+impl LaunchpadStorageKey {
+    pub fn user_records_prefix(pool_id: PoolId) -> Vec<u8> {
+        let mut prefix = Vec::with_capacity(4 + 8);
+        prefix.extend_from_slice(b"user");
+        prefix.extend_from_slice(&pool_id.to_le_bytes());
+        prefix
+    }
 }
 
 pub trait LaunchpadFeature {
