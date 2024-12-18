@@ -1,6 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{
-    collections::{LookupMap, UnorderedSet},
+    collections::{LookupMap, UnorderedSet, UnorderedMap},
     near_bindgen,
     serde::{Deserialize, Serialize},
     AccountId, PanicOnDefault,
@@ -12,6 +12,7 @@ use super::PoolId;
 
 pub const DEFAULT_MIN_STAKING: u128 = 1_000_000_000_000_000_000_000; // 1 NEAR
 
+
 #[near_bindgen]
 #[derive(PanicOnDefault, BorshDeserialize, BorshSerialize)]
 pub struct Launchpad {
@@ -22,6 +23,7 @@ pub struct Launchpad {
     pub pool_metadata_by_id: LookupMap<PoolId, PoolMetadata>,
     pub min_staking_amount: u128,
     pub refund_percent: u8,
+    pub user_records: LookupMap<PoolId, UnorderedMap<AccountId, UserTokenDepositRecord>>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
@@ -37,7 +39,6 @@ pub struct PoolMetadata {
     pub time_start_pledge: u64,
     pub time_end_pledge: u64,
     pub mint_multiple_pledge: u8,
-    pub user_records: Vec<UserTokenDepositRecord>
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
@@ -47,7 +48,7 @@ pub struct Assets {
     pub balances: u128,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Status {
     INIT,
@@ -55,20 +56,38 @@ pub enum Status {
     WAITING,
     VOTING,
     CLOSED,
+    REFUNDED
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct UserTokenDepositRecord {
-    pub user_id: AccountId, // backer
     pub amount: u128, // pledge amount if backer deposited +amount
     pub voting_power: f64, // 0
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct UserRecordDetail {
+    pub user_id: AccountId,
+    pub record: UserTokenDepositRecord,
 }
 
 #[derive(BorshSerialize)]
 pub enum LaunchpadStorageKey {
     AllPoolId,
-    PoolMetadataById
+    PoolMetadataById,
+    UserRecordsMap,
+    UserRecordsById { pool_id: PoolId },
+}
+
+impl LaunchpadStorageKey {
+    pub fn user_records_prefix(pool_id: PoolId) -> Vec<u8> {
+        let mut prefix = Vec::with_capacity(4 + 8);
+        prefix.extend_from_slice(b"user");
+        prefix.extend_from_slice(&pool_id.to_le_bytes());
+        prefix
+    }
 }
 
 pub trait LaunchpadFeature {
@@ -80,41 +99,32 @@ pub trait LaunchpadFeature {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128>;
-
-    fn start_voting(&mut self, pool_id: PoolId) -> PoolMetadata;
-
-    fn change_pool_infor(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64);
-    fn refund(&mut self, pool_id: PoolId);
-
-
+    fn change_pool_funding_time(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64);
     fn add_token(
         &mut self,
         token_id: String,
     );
-
     fn change_admin(
         &mut self,
         new_admin: AccountId
     );
-
     fn delete_token_by_token_id(
         &mut self,
         token_id: AccountId
     );
-
     fn set_min_staking_amount(&mut self, amount: U128);
-    fn get_min_staking_amount(&self) -> U128;
-
     fn set_refund_reject_pool(&mut self, percent: u8);
-    fn get_refund_reject_pool(&self) -> u8;
-
     fn approve_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
     fn reject_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
+    fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128);
 }
 
-pub trait LaunchpadEnum {
+
+pub trait LaunchpadGet {
+    fn get_min_staking_amount(&self) -> U128;
+    fn get_refund_reject_pool(&self) -> u8;
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>>;
-    fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<AccountId>>;
+    fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<PoolMetadata>>;
     fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>>;
     fn get_all_funding_pools(&self) -> Option<Vec<PoolMetadata>>;
     fn get_all_init_pools(&self) -> Option<Vec<PoolMetadata>>;
@@ -122,4 +132,5 @@ pub trait LaunchpadEnum {
     fn get_all_waiting_pools(&self) -> Option<Vec<PoolMetadata>>;
     fn get_detail_pool(&self, pool_id: PoolId) -> Option<PoolMetadata>;
     fn get_balance_creator(&self, pool_id: PoolId) -> Option<u128>;
+    fn get_user_records_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserRecordDetail>>;
 }

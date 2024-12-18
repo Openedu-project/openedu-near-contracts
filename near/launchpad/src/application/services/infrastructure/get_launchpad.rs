@@ -1,14 +1,17 @@
-use near_sdk::{near_bindgen, AccountId};
+use near_sdk::{near_bindgen, AccountId, json_types::U128};
 
 use crate::models::{
-    contract::{Launchpad, LaunchpadEnum, LaunchpadExt, PoolMetadata, Status, UserTokenDepositRecord}, 
+    contract::{Launchpad, LaunchpadGet, LaunchpadExt, PoolMetadata, Status, UserTokenDepositRecord, UserRecordDetail}, 
     PoolId
 };
 
 #[near_bindgen]
+impl LaunchpadGet for Launchpad {
 
-// todo: LaunchpadGet (enum tưởng constant hardcode) 
-impl LaunchpadEnum for Launchpad {
+    /* //////////////////////////////////////////////////////////////
+                            GETTER FUNCTIONS
+    ////////////////////////////////////////////////////////////// */
+
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>> {
         if self.all_pool_id.is_empty() {
             return None;
@@ -23,15 +26,15 @@ impl LaunchpadEnum for Launchpad {
         }
     }
     
-    fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<AccountId>> {
-        self.pool_metadata_by_id.get(&pool_id).map(|pool| {
-            pool.user_records.iter().map(|record| record.user_id.clone()).collect()
-        })
+    fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<PoolMetadata>> {
+        self.pool_metadata_by_id.get(&pool_id).map(|pool| vec![pool])
     }
 
     fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>> {
-        self.pool_metadata_by_id.get(&pool_id).map(|pool| {
-            pool.user_records.clone()
+        self.user_records.get(&pool_id).map(|user_records| {
+            user_records.iter()
+                .map(|(_, record)| record.clone()) // Clone giá trị
+                .collect()
         })
     }
 
@@ -134,5 +137,35 @@ impl LaunchpadEnum for Launchpad {
         self.pool_metadata_by_id.get(&pool_id).map(|pool| {
             pool.total_balance
         })
+    }
+
+    // get refund percentage for rejected pools right now
+    fn get_refund_reject_pool(&self) -> u8 {
+        self.refund_percent
+    }
+
+     // get min staking amount right now
+     fn get_min_staking_amount(&self) -> U128 {
+        U128(self.min_staking_amount)
+    }
+
+    fn get_user_records_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserRecordDetail>> {
+        if let Some(user_records) = self.user_records.get(&pool_id) {
+            let records: Vec<UserRecordDetail> = user_records
+                .iter()
+                .map(|(user_id, record)| UserRecordDetail {
+                    user_id,
+                    record: record.clone(),
+                })
+                .collect();
+
+            if records.is_empty() {
+                None
+            } else {
+                Some(records)
+            }
+        } else {
+            None
+        }
     }
 }
