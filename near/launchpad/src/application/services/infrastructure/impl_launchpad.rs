@@ -258,7 +258,7 @@ impl LaunchpadFeature for Launchpad {
     
 
     #[payable]
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8, time_start_pledge: u64, time_end_pledge: u64, target_funding: u128) -> PoolMetadata {
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: u128) -> PoolMetadata {
         let pool_id = self.all_pool_id.len() as u64 + 1;
         let creator_id = env::signer_account_id();
         let staking_amount = env::attached_deposit();

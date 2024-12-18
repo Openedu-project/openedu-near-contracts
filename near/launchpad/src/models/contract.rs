@@ -95,7 +95,7 @@ impl LaunchpadStorageKey {
 }
 
 pub trait LaunchpadFeature {
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8, time_start_pledge: u64, time_end_pledge: u64, target_funding: u128) -> PoolMetadata;
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: u128) -> PoolMetadata;
 
     fn ft_on_transfer(
         &mut self,
@@ -123,7 +123,7 @@ pub trait LaunchpadFeature {
     fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
     fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128);
     fn check_funding_result(&mut self, pool_id: PoolId, is_waiting_funding: bool) -> PoolMetadata;
-    fn withdraw_fund_by_backer(&mut self, pool_id);
+    fn withdraw_fund_by_backer(&mut self, pool_id: PoolId);
 }
 
 
@@ -132,7 +132,6 @@ pub trait LaunchpadGet {
     fn get_refund_reject_pool(&self) -> u8;
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>>;
     fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<PoolMetadata>>;
-    fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>>;
     fn get_all_funding_pools(&self) -> Option<Vec<PoolMetadata>>;
     fn get_all_init_pools(&self) -> Option<Vec<PoolMetadata>>;
     fn get_all_closed_pools(&self) -> Option<Vec<PoolMetadata>>;
