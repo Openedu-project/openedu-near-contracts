@@ -30,14 +30,6 @@ impl LaunchpadGet for Launchpad {
         self.pool_metadata_by_id.get(&pool_id).map(|pool| vec![pool])
     }
 
-    fn get_all_users_power_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserTokenDepositRecord>> {
-        self.user_records.get(&pool_id).map(|user_records| {
-            user_records.iter()
-                .map(|(_, record)| record.clone()) // Clone giá trị
-                .collect()
-        })
-    }
-
     fn get_all_funding_pools(&self) -> Option<Vec<PoolMetadata>> {
         if self.all_pool_id.is_empty() {
             return None;

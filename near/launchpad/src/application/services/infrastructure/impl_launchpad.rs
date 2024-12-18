@@ -467,4 +467,40 @@ impl LaunchpadFeature for Launchpad {
         pool
     }
 
+    fn withdraw_fund_by_backer(&mut self, pool_id: PoolId) {
+        let caller_id = env::signer_account_id();
+
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if pool.status != Status::REFUNDED {
+            env::panic_str("Pool is not in REFUNDED status");
+        }
+
+        let mut user_records = self.user_records.get(&pool_id)
+            .expect("No user records found for this pool");
+
+        let mut user_record = user_records.get(&caller_id)
+            .expect("User has no record in this pool")
+            .clone();
+
+        let refund_amount = (pool.total_balance as f64 * user_record.voting_power / 100.0) as u128;
+
+        if refund_amount == 0 {
+            env::panic_str("No funds available for withdrawal");
+        }
+
+        // Update the user's record amount to 0
+        user_record.amount = 0;
+        user_records.insert(&caller_id, &user_record);
+        self.user_records.insert(&pool_id, &user_records);
+
+        Promise::new(caller_id.clone()).transfer(refund_amount);
+
+        env::log_str(&format!(
+            "User {} withdrew {} yoctoNEAR from pool {}",
+            caller_id, refund_amount, pool_id
+        ));
+    }
+
 }

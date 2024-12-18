@@ -123,6 +123,7 @@ pub trait LaunchpadFeature {
     fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
     fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128);
     fn check_funding_result(&mut self, pool_id: PoolId, is_waiting_funding: bool) -> PoolMetadata;
+    fn withdraw_fund_by_backer(&mut self, pool_id);
 }
 
 
