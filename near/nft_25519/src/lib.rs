@@ -287,7 +287,7 @@ impl Contract {
         );
     }
 
-    fn change_admin_pubkey(&mut self, new_pubkey: String) {
+    pub fn change_admin_pubkey(&mut self, new_pubkey: String) {
         let caller_id = env::predecessor_account_id();
         let owner_id = self.tokens.owner_id.clone();
 
