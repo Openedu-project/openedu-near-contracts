@@ -447,6 +447,7 @@ impl LaunchpadFeature for Launchpad {
             },
             _ if is_waiting_funding => {
                 pool.status = Status::WAITING;
+                pool.time_end_pledge += 3 * 24 * 60 * 60 * 1_000_000_000; // Add 3 days in nanoseconds
                 env::log_str(&format!(
                     "Pool {} status changed to WAITING",
                     pool_id
