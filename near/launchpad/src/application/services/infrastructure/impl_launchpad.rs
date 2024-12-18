@@ -258,7 +258,7 @@ impl LaunchpadFeature for Launchpad {
     
 
     #[payable]
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8, time_start_pledge: u64, time_end_pledge: u64) -> PoolMetadata {
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8, time_start_pledge: u64, time_end_pledge: u64, target_funding: u128) -> PoolMetadata {
         let pool_id = self.all_pool_id.len() as u64 + 1;
         let creator_id = env::signer_account_id();
         let staking_amount = env::attached_deposit();
@@ -295,6 +295,7 @@ impl LaunchpadFeature for Launchpad {
             status: Status::INIT,
             token_id: token_id.clone(),
             total_balance: 0,
+            target_funding,
             time_start_pledge,
             time_end_pledge,
             mint_multiple_pledge,
@@ -416,5 +417,53 @@ impl LaunchpadFeature for Launchpad {
         PromiseOrValue::Value(U128(0))
     }
 
+    fn check_funding_result(&mut self, pool_id: PoolId, is_waiting_funding: bool) -> PoolMetadata {
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if pool.status != Status::FUNDING {
+            env::panic_str("Pool is not in FUNDING status");
+        }
+
+        let current_time = env::block_timestamp();
+        if current_time <= pool.time_end_pledge {
+            env::panic_str("Funding period has not ended yet");
+        }
+
+        match pool.total_balance {
+            0 => {
+                pool.status = Status::FAILED;
+                env::log_str(&format!(
+                    "Pool {} status changed to FAILED due to zero total balance",
+                    pool_id
+                ));
+            },
+            _ if pool.total_balance >= pool.target_funding => {
+                pool.status = Status::VOTING;
+                env::log_str(&format!(
+                    "Pool {} status changed to VOTING due to reaching target funding",
+                    pool_id
+                ));
+            },
+            _ if is_waiting_funding => {
+                pool.status = Status::WAITING;
+                env::log_str(&format!(
+                    "Pool {} status changed to WAITING",
+                    pool_id
+                ));
+            },
+            _ => {
+                pool.status = Status::REFUNDED;
+                env::log_str(&format!(
+                    "Pool {} status changed to CLOSED",
+                    pool_id
+                ));
+            }
+        }
+
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        pool
+    }
 
 }

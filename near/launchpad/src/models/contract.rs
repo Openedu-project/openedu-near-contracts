@@ -36,9 +36,10 @@ pub struct PoolMetadata {
     pub status: Status,
     pub token_id: AccountId,
     pub total_balance: u128,
+    pub target_funding: u128,
     pub time_start_pledge: u64,
     pub time_end_pledge: u64,
-    pub mint_multiple_pledge: u8,
+    pub mint_multiple_pledge: u128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
@@ -94,7 +95,7 @@ impl LaunchpadStorageKey {
 }
 
 pub trait LaunchpadFeature {
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8, time_start_pledge: u64, time_end_pledge: u64) -> PoolMetadata;
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8, time_start_pledge: u64, time_end_pledge: u64, target_funding: u128) -> PoolMetadata;
 
     fn ft_on_transfer(
         &mut self,
@@ -121,6 +122,7 @@ pub trait LaunchpadFeature {
     fn reject_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
     fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
     fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128);
+    fn check_funding_result(&mut self, pool_id: PoolId, is_waiting_funding: bool) -> PoolMetadata;
 }
 
 
