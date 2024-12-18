@@ -142,8 +142,8 @@ impl Contract {
     pub fn nft_mint_for_sponsor(
         &mut self,
         token_id: TokenId,
-        token_metadata: TokenMetadata,
         receiver_id: AccountId,
+        token_metadata: TokenMetadata,
         course_id: CourseId
     ) -> Token {
         
@@ -204,7 +204,7 @@ impl Contract {
     pub fn nft_mint(
         &mut self,
         token_id: TokenId,
-        token_owner_id: AccountId,
+        receiver_id: AccountId,
         token_metadata: TokenMetadata,
     ) -> Token {
         assert_eq!(
@@ -213,7 +213,7 @@ impl Contract {
             "Unauthorized"
         );
         self.tokens
-            .internal_mint(token_id, token_owner_id, Some(token_metadata))
+            .internal_mint(token_id, receiver_id, Some(token_metadata))
     }
 
     // Ensure the function is payable to allow NEAR deposits
@@ -287,7 +287,7 @@ impl Contract {
         );
     }
 
-    fn change_admin_pubkey(&mut self, new_pubkey: String) {
+    pub fn change_admin_pubkey(&mut self, new_pubkey: String) {
         let caller_id = env::predecessor_account_id();
         let owner_id = self.tokens.owner_id.clone();
 
