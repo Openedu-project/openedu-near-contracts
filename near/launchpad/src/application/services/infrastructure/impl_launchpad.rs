@@ -311,6 +311,43 @@ impl LaunchpadFeature for Launchpad {
         pool
     }
 
+    // creator pool should be cancel pool
+    fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if env::signer_account_id() != pool.creator_id {
+            env::panic_str("Only the creator of the pool can cancel it.");
+        }
+
+        if !matches!(pool.status, Status::INIT) {
+            env::panic_str("Pool must be in INIT status to be rejected");
+        }
+
+        let refund_amount = if self.refund_percent == 0 {
+            1_000_000_000_000_000_000_000
+        } else {
+            (pool.staking_amount * self.refund_percent as u128) / 100
+        };
+
+        Promise::new(pool.creator_id.clone())
+            .transfer(refund_amount);
+
+        pool.status = Status::CANCELED;
+        pool.staking_amount = 0;  
+        
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        env::log_str(&format!(
+            "Pool {} has been canceled by creator. {}% of deposit ({} yoctoNEAR) returned to creator {}",
+            pool_id,
+            self.refund_percent,
+            refund_amount,
+            pool.creator_id
+        ));
+
+        pool
+    }
 
     fn ft_on_transfer(
         &mut self,

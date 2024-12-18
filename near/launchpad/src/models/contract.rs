@@ -53,10 +53,13 @@ pub struct Assets {
 pub enum Status {
     INIT,
     FUNDING,
+    REJECTED,
+    CANCELED,
+    FAILED,
     WAITING,
+    REFUNDED,
     VOTING,
-    CLOSED,
-    REFUNDED
+    CLOSED
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
@@ -116,6 +119,7 @@ pub trait LaunchpadFeature {
     fn set_refund_reject_pool(&mut self, percent: u8);
     fn approve_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
     fn reject_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
+    fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
     fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128);
 }
 
