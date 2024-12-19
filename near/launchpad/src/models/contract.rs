@@ -60,7 +60,8 @@ pub enum Status {
     WAITING,
     REFUNDED,
     VOTING,
-    CLOSED
+    CLOSED,
+    SUCCESSFUL
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
@@ -103,7 +104,7 @@ pub trait LaunchpadFeature {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128>;
-    fn change_pool_funding_time(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64);
+    fn change_pool_funding_time(&mut self, pool_id: u64, time_start_pledge: u64, time_end_pledge: u64);
     fn add_token(
         &mut self,
         token_id: String,
@@ -124,19 +125,16 @@ pub trait LaunchpadFeature {
     fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128);
     fn check_funding_result(&mut self, pool_id: PoolId, is_waiting_funding: bool) -> PoolMetadata;
     fn withdraw_fund_by_backer(&mut self, pool_id: PoolId);
+    fn update_pool_status_to_successful(&mut self, pool_id: PoolId);
 }
 
 
 pub trait LaunchpadGet {
-    fn get_min_staking_amount(&self) -> U128;
-    fn get_refund_reject_pool(&self) -> u8;
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>>;
-    fn get_pool_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<PoolMetadata>>;
-    fn get_all_funding_pools(&self) -> Option<Vec<PoolMetadata>>;
-    fn get_all_init_pools(&self) -> Option<Vec<PoolMetadata>>;
-    fn get_all_closed_pools(&self) -> Option<Vec<PoolMetadata>>;
-    fn get_all_waiting_pools(&self) -> Option<Vec<PoolMetadata>>;
+    fn get_pools_by_status(&self, status_str: String) -> Option<Vec<PoolMetadata>>;
     fn get_detail_pool(&self, pool_id: PoolId) -> Option<PoolMetadata>;
     fn get_balance_creator(&self, pool_id: PoolId) -> Option<u128>;
+    fn get_refund_reject_pool(&self) -> u8;
+    fn get_min_staking_amount(&self) -> U128;
     fn get_user_records_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserRecordDetail>>;
 }
