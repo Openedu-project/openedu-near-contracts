@@ -112,65 +112,48 @@ impl LaunchpadFeature for Launchpad {
         env::log_str(&format!("Token with ID {} has been deleted.", token_id));
     }
 
-    // admin can approve pool
-    fn approve_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
+    // admin can set pool status to FUNDING or CLOSED
+    fn admin_set_status_pool_pre_funding(&mut self, pool_id: PoolId, approve: bool) -> PoolMetadata {
         if env::signer_account_id() != self.owner_id {
-            env::panic_str("Only admin can approve pools");
+            env::panic_str("Only admin can set pool status");
         }
 
         let mut pool = self.pool_metadata_by_id.get(&pool_id)
             .expect("Pool does not exist");
 
         if !matches!(pool.status, Status::INIT) {
-            env::panic_str("Pool must be in INIT status to be approved");
+            env::panic_str("Pool must be in INIT status to change status");
         }
 
-        pool.status = Status::FUNDING;
-        
-        self.pool_metadata_by_id.insert(&pool_id, &pool);
-
-        env::log_str(&format!(
-            "Pool {} has been approved and is now in FUNDING status",
-            pool_id
-        ));
-
-        pool
-    }
-
-    // admin can reject pool
-    fn reject_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
-        if env::signer_account_id() != self.owner_id {
-            env::panic_str("Only admin can reject pools");
-        }
-
-        let mut pool = self.pool_metadata_by_id.get(&pool_id)
-            .expect("Pool does not exist");
-
-        if !matches!(pool.status, Status::INIT) {
-            env::panic_str("Pool must be in INIT status to be rejected");
-        }
-
-        let refund_amount = if self.refund_percent == 0 {
-            1_000_000_000_000_000_000_000
+        if approve {
+            pool.status = Status::FUNDING;
+            env::log_str(&format!(
+                "Pool {} has been approved and is now in FUNDING status",
+                pool_id
+            ));
         } else {
-            (pool.staking_amount * self.refund_percent as u128) / 100
-        };
+            let refund_amount = if self.refund_percent == 0 {
+                1_000_000_000_000_000_000_000
+            } else {
+                (pool.staking_amount * self.refund_percent as u128) / 100
+            };
 
-        Promise::new(pool.creator_id.clone())
-            .transfer(refund_amount);
+            Promise::new(pool.creator_id.clone())
+                .transfer(refund_amount);
 
-        pool.status = Status::CLOSED;
-        pool.staking_amount = 0;  
-        
+            pool.status = Status::REJECTED;
+            pool.staking_amount = 0;  
+            
+            env::log_str(&format!(
+                "Pool {} has been rejected. {}% of deposit ({} yoctoNEAR) returned to creator {}",
+                pool_id,
+                self.refund_percent,
+                refund_amount,
+                pool.creator_id
+            ));
+        }
+
         self.pool_metadata_by_id.insert(&pool_id, &pool);
-
-        env::log_str(&format!(
-            "Pool {} has been rejected. {}% of deposit ({} yoctoNEAR) returned to creator {}",
-            pool_id,
-            self.refund_percent,
-            refund_amount,
-            pool.creator_id
-        ));
 
         pool
     }
@@ -252,32 +235,38 @@ impl LaunchpadFeature for Launchpad {
         self.pool_metadata_by_id.insert(&pool_id, &pool);
     }
 
-    fn update_pool_status_to_successful(&mut self, pool_id: PoolId) {
+    fn update_pool_status_by_admin(&mut self, pool_id: PoolId, status: String) {
         let signer_id = env::signer_account_id();
 
         if signer_id != self.owner_id {
-            env::panic_str("Only the owner can update the pool status to successful.");
+            env::panic_str("Only the owner can update the pool status.");
         }
 
         let mut pool = self.pool_metadata_by_id.get(&pool_id)
             .expect("Pool does not exist");
 
-        if pool.status != Status::VOTING {
-            env::panic_str("Pool must be in VOTING status to be updated to successful.");
-        }
+        let new_status = match status.as_str() {
+            "INIT" => Status::INIT,
+            "FUNDING" => Status::FUNDING,
+            "REJECTED" => Status::REJECTED,
+            "CANCELED" => Status::CANCELED,
+            "FAILED" => Status::FAILED,
+            "WAITING" => Status::WAITING,
+            "REFUNDED" => Status::REFUNDED,
+            "VOTING" => Status::VOTING,
+            "CLOSED" => Status::CLOSED,
+            "SUCCESSFUL" => Status::SUCCESSFUL,
+            _ => env::panic_str("Invalid status provided."),
+        };
 
-        let current_time = env::block_timestamp();
-        if current_time <= pool.time_end_pledge {
-            env::panic_str("Current time must be greater than the end time of the pledge period.");
-        }
-
-        pool.status = Status::SUCCESSFUL;
+        pool.status = new_status;
 
         self.pool_metadata_by_id.insert(&pool_id, &pool);
 
         env::log_str(&format!(
-            "Pool {} status updated to SUCCESSFUL by owner {}",
+            "Pool {} status updated to {} by owner {}",
             pool_id,
+            status,
             signer_id
         ));
     }
@@ -288,7 +277,7 @@ impl LaunchpadFeature for Launchpad {
     
 
     #[payable]
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: u128) -> PoolMetadata {
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, min_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: U128) -> PoolMetadata {
         let pool_id = self.all_pool_id.len() as u64 + 1;
         let creator_id = env::signer_account_id();
         let staking_amount = env::attached_deposit();
@@ -325,19 +314,21 @@ impl LaunchpadFeature for Launchpad {
             status: Status::INIT,
             token_id: token_id.clone(),
             total_balance: 0,
-            target_funding,
+            target_funding: target_funding.0,
             time_start_pledge,
             time_end_pledge,
-            mint_multiple_pledge,
+            min_multiple_pledge,
         };
 
         self.all_pool_id.insert(&pool_id);
         self.pool_metadata_by_id.insert(&pool_id, &pool);
 
-        env::log_str(&format!(
-            "Pool {} created by {} using token {}. Staking amount: {} yoctoNEAR",
-            pool_id, creator_id, token_id, staking_amount
-        ));
+        env::log_str(&serde_json::json!({
+            "pool_id": pool_id,
+            "creator_id": creator_id,
+            "token_id": token_id,
+            "staking_amount": staking_amount
+        }).to_string());
 
         pool
     }
@@ -451,6 +442,10 @@ impl LaunchpadFeature for Launchpad {
         let mut pool = self.pool_metadata_by_id.get(&pool_id)
             .expect("Pool does not exist");
 
+        if env::signer_account_id() != self.owner_id {
+            env::panic_str("Only the owner can call this function");
+        }
+
         if pool.status != Status::FUNDING {
             env::panic_str("Pool is not in FUNDING status");
         }
@@ -458,6 +453,15 @@ impl LaunchpadFeature for Launchpad {
         let current_time = env::block_timestamp();
         if current_time <= pool.time_end_pledge {
             env::panic_str("Funding period has not ended yet");
+        }
+
+        // calculating voting_power to backer
+        if let Some(mut user_records) = self.user_records.get(&pool_id) {
+            for (user_id, mut record) in user_records.iter() {
+                record.voting_power = ((record.amount as f64) / (pool.total_balance as f64)) * 100.0;
+                user_records.insert(&user_id, &record);
+            }
+            self.user_records.insert(&pool_id, &user_records);
         }
 
         match pool.total_balance {
@@ -490,6 +494,41 @@ impl LaunchpadFeature for Launchpad {
                     pool_id
                 ));
             }
+        }
+
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        pool
+    }
+
+    fn creator_set_status_pool_after_wating(&mut self, pool_id: PoolId, approve: bool) -> PoolMetadata {
+        let signer_id = env::signer_account_id();
+
+        if signer_id != self.owner_id {
+            env::panic_str("Only the owner can set the pool status after waiting.");
+        }
+
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if pool.status != Status::WAITING {
+            env::panic_str("Pool status must be WAITING to change it after waiting period.");
+        }
+
+        if approve {
+            pool.status = Status::VOTING;
+            env::log_str(&format!(
+                "Pool {} status changed to VOTING by owner {}",
+                pool_id,
+                signer_id
+            ));
+        } else {
+            pool.status = Status::REFUNDED;
+            env::log_str(&format!(
+                "Pool {} status changed to REFUNDED by owner {}",
+                pool_id,
+                signer_id
+            ));
         }
 
         self.pool_metadata_by_id.insert(&pool_id, &pool);
