@@ -39,7 +39,7 @@ pub struct PoolMetadata {
     pub target_funding: u128,
     pub time_start_pledge: u64,
     pub time_end_pledge: u64,
-    pub mint_multiple_pledge: u128,
+    pub min_multiple_pledge: u128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone)]
@@ -96,7 +96,7 @@ impl LaunchpadStorageKey {
 }
 
 pub trait LaunchpadFeature {
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: u128) -> PoolMetadata;
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: U128) -> PoolMetadata;
 
     fn ft_on_transfer(
         &mut self,
@@ -119,13 +119,13 @@ pub trait LaunchpadFeature {
     );
     fn set_min_staking_amount(&mut self, amount: U128);
     fn set_refund_reject_pool(&mut self, percent: u8);
-    fn approve_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
-    fn reject_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
+    fn admin_set_status_pool_pre_funding(&mut self, pool_id: PoolId, approve: bool) -> PoolMetadata;
     fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata;
     fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128);
     fn check_funding_result(&mut self, pool_id: PoolId, is_waiting_funding: bool) -> PoolMetadata;
     fn withdraw_fund_by_backer(&mut self, pool_id: PoolId);
-    fn update_pool_status_to_successful(&mut self, pool_id: PoolId);
+    fn update_pool_status_by_admin(&mut self, pool_id: PoolId);
+    fn creator_set_status_pool_after_wating(&mut self, pool_id: PoolId, approve: bool) -> PoolMetadata;
 }
 
 
