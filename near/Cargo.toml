@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-#    "payment",
-#    "ft_token",
+    "payment",
+    "ft_token",
     "launchpad",
-#    "integration-tests",
-#    "nft_25519"
+    "integration-tests",
+    "nft_25519"
 ]
 
 [profile.release]
