@@ -457,9 +457,14 @@ impl LaunchpadFeature for Launchpad {
 
         // calculating voting_power to backer
         if let Some(mut user_records) = self.user_records.get(&pool_id) {
-            for (user_id, mut record) in user_records.iter() {
-                record.voting_power = ((record.amount as f64) / (pool.total_balance as f64)) * 100.0;
-                user_records.insert(&user_id, &record);
+            let mut updated_records = Vec::new();
+            for (user_id, record) in user_records.iter() {
+                let mut updated_record = record.clone();
+                updated_record.voting_power = ((updated_record.amount as f64) / (pool.total_balance as f64)) * 100.0;
+                updated_records.push((user_id, updated_record));
+            }
+            for (user_id, updated_record) in updated_records {
+                user_records.insert(&user_id, &updated_record);
             }
             self.user_records.insert(&pool_id, &user_records);
         }
