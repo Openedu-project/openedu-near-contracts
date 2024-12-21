@@ -24,7 +24,7 @@ impl LaunchpadFeature for Launchpad {
                             ADMIN FUNCTIONS
     ////////////////////////////////////////////////////////////// */
 
-    fn change_pool_funding_time(&mut self, pool_id: u64, campaign_id: String, time_start_pledge: u64, time_end_pledge: u64) {
+    fn change_pool_funding_time(&mut self, pool_id: u64, time_start_pledge: u64, time_end_pledge: u64) {
         let signer_id = env::signer_account_id();
         
         if signer_id != self.owner_id {
@@ -252,13 +252,43 @@ impl LaunchpadFeature for Launchpad {
         self.pool_metadata_by_id.insert(&pool_id, &pool);
     }
 
+    fn update_pool_status_to_successful(&mut self, pool_id: PoolId) {
+        let signer_id = env::signer_account_id();
+
+        if signer_id != self.owner_id {
+            env::panic_str("Only the owner can update the pool status to successful.");
+        }
+
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if pool.status != Status::VOTING {
+            env::panic_str("Pool must be in VOTING status to be updated to successful.");
+        }
+
+        let current_time = env::block_timestamp();
+        if current_time <= pool.time_end_pledge {
+            env::panic_str("Current time must be greater than the end time of the pledge period.");
+        }
+
+        pool.status = Status::SUCCESSFUL;
+
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        env::log_str(&format!(
+            "Pool {} status updated to SUCCESSFUL by owner {}",
+            pool_id,
+            signer_id
+        ));
+    }
+
     /* //////////////////////////////////////////////////////////////
                             USER FUNCTIONS
     ////////////////////////////////////////////////////////////// */
     
 
     #[payable]
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u8, time_start_pledge: u64, time_end_pledge: u64) -> PoolMetadata {
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: u128) -> PoolMetadata {
         let pool_id = self.all_pool_id.len() as u64 + 1;
         let creator_id = env::signer_account_id();
         let staking_amount = env::attached_deposit();
@@ -295,6 +325,7 @@ impl LaunchpadFeature for Launchpad {
             status: Status::INIT,
             token_id: token_id.clone(),
             total_balance: 0,
+            target_funding,
             time_start_pledge,
             time_end_pledge,
             mint_multiple_pledge,
@@ -311,6 +342,43 @@ impl LaunchpadFeature for Launchpad {
         pool
     }
 
+    // creator pool should be cancel pool
+    fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if env::signer_account_id() != pool.creator_id {
+            env::panic_str("Only the creator of the pool can cancel it.");
+        }
+
+        if !matches!(pool.status, Status::INIT) {
+            env::panic_str("Pool must be in INIT status to be rejected");
+        }
+
+        let refund_amount = if self.refund_percent == 0 {
+            1_000_000_000_000_000_000_000
+        } else {
+            (pool.staking_amount * self.refund_percent as u128) / 100
+        };
+
+        Promise::new(pool.creator_id.clone())
+            .transfer(refund_amount);
+
+        pool.status = Status::CANCELED;
+        pool.staking_amount = 0;  
+        
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        env::log_str(&format!(
+            "Pool {} has been canceled by creator. {}% of deposit ({} yoctoNEAR) returned to creator {}",
+            pool_id,
+            self.refund_percent,
+            refund_amount,
+            pool.creator_id
+        ));
+
+        pool
+    }
 
     fn ft_on_transfer(
         &mut self,
@@ -379,5 +447,90 @@ impl LaunchpadFeature for Launchpad {
         PromiseOrValue::Value(U128(0))
     }
 
+    fn check_funding_result(&mut self, pool_id: PoolId, is_waiting_funding: bool) -> PoolMetadata {
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if pool.status != Status::FUNDING {
+            env::panic_str("Pool is not in FUNDING status");
+        }
+
+        let current_time = env::block_timestamp();
+        if current_time <= pool.time_end_pledge {
+            env::panic_str("Funding period has not ended yet");
+        }
+
+        match pool.total_balance {
+            0 => {
+                pool.status = Status::FAILED;
+                env::log_str(&format!(
+                    "Pool {} status changed to FAILED due to zero total balance",
+                    pool_id
+                ));
+            },
+            _ if pool.total_balance >= pool.target_funding => {
+                pool.status = Status::VOTING;
+                env::log_str(&format!(
+                    "Pool {} status changed to VOTING due to reaching target funding",
+                    pool_id
+                ));
+            },
+            _ if is_waiting_funding => {
+                pool.status = Status::WAITING;
+                pool.time_end_pledge += 3 * 24 * 60 * 60 * 1_000_000_000; // Add 3 days in nanoseconds
+                env::log_str(&format!(
+                    "Pool {} status changed to WAITING",
+                    pool_id
+                ));
+            },
+            _ => {
+                pool.status = Status::REFUNDED;
+                env::log_str(&format!(
+                    "Pool {} status changed to CLOSED",
+                    pool_id
+                ));
+            }
+        }
+
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        pool
+    }
+
+    fn withdraw_fund_by_backer(&mut self, pool_id: PoolId) {
+        let caller_id = env::signer_account_id();
+
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if pool.status != Status::REFUNDED {
+            env::panic_str("Pool is not in REFUNDED status");
+        }
+
+        let mut user_records = self.user_records.get(&pool_id)
+            .expect("No user records found for this pool");
+
+        let mut user_record = user_records.get(&caller_id)
+            .expect("User has no record in this pool")
+            .clone();
+
+        let refund_amount = (pool.total_balance as f64 * user_record.voting_power / 100.0) as u128;
+
+        if refund_amount == 0 {
+            env::panic_str("No funds available for withdrawal");
+        }
+
+        // Update the user's record amount to 0
+        user_record.amount = 0;
+        user_records.insert(&caller_id, &user_record);
+        self.user_records.insert(&pool_id, &user_records);
+
+        Promise::new(caller_id.clone()).transfer(refund_amount);
+
+        env::log_str(&format!(
+            "User {} withdrew {} yoctoNEAR from pool {}",
+            caller_id, refund_amount, pool_id
+        ));
+    }
 
 }
