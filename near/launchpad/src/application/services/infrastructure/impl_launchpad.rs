@@ -23,7 +23,6 @@ impl LaunchpadFeature for Launchpad {
     /* //////////////////////////////////////////////////////////////
                             ADMIN FUNCTIONS
     ////////////////////////////////////////////////////////////// */
-
     fn change_pool_funding_time(&mut self, pool_id: u64, time_start_pledge: u64, time_end_pledge: u64) {
         let signer_id = env::signer_account_id();
         
@@ -60,7 +59,6 @@ impl LaunchpadFeature for Launchpad {
     }
 
     // admin can add list token use payable
-
     fn add_token(
         &mut self,
         token_id: String,
@@ -88,7 +86,6 @@ impl LaunchpadFeature for Launchpad {
     }
 
     // admin can change admin contract launchpad
-
     fn change_admin(&mut self, new_admin: AccountId) {
        
         if env::signer_account_id() != self.owner_id {
@@ -100,7 +97,6 @@ impl LaunchpadFeature for Launchpad {
     }
 
     // admin can delete a token payable
-
     fn delete_token_by_token_id(
         &mut self,
         token_id: AccountId
@@ -110,6 +106,24 @@ impl LaunchpadFeature for Launchpad {
         }
 
         env::log_str(&format!("Token with ID {} has been deleted.", token_id));
+    }
+
+    // admin can change the refund percentage for rejected pools
+    fn set_refund_reject_pool(&mut self, percent: u8) {
+        if env::signer_account_id() != self.owner_id {
+            env::panic_str("Only admin can set refund percentage");
+        }
+
+        if percent > 100 {
+            env::panic_str("Refund percentage must be between 0 and 100");
+        }
+
+        self.refund_percent = percent;
+
+        env::log_str(&format!(
+            "Refund percentage for rejected pools set to {}%",
+            percent
+        ));
     }
 
     // admin can set pool status to FUNDING or CLOSED
@@ -178,24 +192,6 @@ impl LaunchpadFeature for Launchpad {
             amount.0 / DEFAULT_MIN_STAKING
         ));
     }
-
-    // admin can change the refund percentage for rejected pools
-    fn set_refund_reject_pool(&mut self, percent: u8) {
-        if env::signer_account_id() != self.owner_id {
-            env::panic_str("Only admin can set refund percentage");
-        }
-
-        if percent > 100 {
-            env::panic_str("Refund percentage must be between 0 and 100");
-        }
-
-        self.refund_percent = percent;
-
-        env::log_str(&format!(
-            "Refund percentage for rejected pools set to {}%",
-            percent
-        ));
-    }
     
     fn withdraw_to_creator(&mut self, pool_id: PoolId, amount: U128) {
         let signer_id = env::signer_account_id();
@@ -235,7 +231,7 @@ impl LaunchpadFeature for Launchpad {
         self.pool_metadata_by_id.insert(&pool_id, &pool);
     }
 
-    fn update_pool_status_by_admin(&mut self, pool_id: PoolId, status: String) {
+    fn update_pool_status(&mut self, pool_id: PoolId, status: String) {
         let signer_id = env::signer_account_id();
 
         if signer_id != self.owner_id {
@@ -269,173 +265,6 @@ impl LaunchpadFeature for Launchpad {
             status,
             signer_id
         ));
-    }
-
-    /* //////////////////////////////////////////////////////////////
-                            USER FUNCTIONS
-    ////////////////////////////////////////////////////////////// */
-    
-
-    #[payable]
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, min_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: U128) -> PoolMetadata {
-        let pool_id = self.all_pool_id.len() as u64 + 1;
-        let creator_id = env::signer_account_id();
-        let staking_amount = env::attached_deposit();
-
-        if staking_amount < self.min_staking_amount {
-            env::panic_str(&format!(
-                "Attached deposit must be at least {} yoctoNEAR ({} NEAR)",
-                self.min_staking_amount,
-                self.min_staking_amount / DEFAULT_MIN_STAKING
-            ));
-        }
-
-        // Check if the token is in the allowed list
-        if !self.list_assets.iter().any(|asset| asset.token_id == token_id) {
-            env::panic_str(&format!(
-                "Token {} is not supported. Only tokens added by admin can be used for pools",
-                token_id
-            ));
-        }
-
-        if time_start_pledge >= time_end_pledge {
-            env::panic_str("End time must be after start time");
-        }
-
-        if time_start_pledge <= env::block_timestamp() {
-            env::panic_str("Start time must be in the future");
-        }
-        
-        let pool = PoolMetadata {
-            pool_id,
-            campaign_id,
-            creator_id: creator_id.clone(),
-            staking_amount,
-            status: Status::INIT,
-            token_id: token_id.clone(),
-            total_balance: 0,
-            target_funding: target_funding.0,
-            time_start_pledge,
-            time_end_pledge,
-            min_multiple_pledge,
-        };
-
-        self.all_pool_id.insert(&pool_id);
-        self.pool_metadata_by_id.insert(&pool_id, &pool);
-
-        env::log_str(&serde_json::json!({
-            "pool_id": pool_id,
-            "creator_id": creator_id,
-            "token_id": token_id,
-            "staking_amount": staking_amount
-        }).to_string());
-
-        pool
-    }
-
-    // creator pool should be cancel pool
-    fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
-        let mut pool = self.pool_metadata_by_id.get(&pool_id)
-            .expect("Pool does not exist");
-
-        if env::signer_account_id() != pool.creator_id {
-            env::panic_str("Only the creator of the pool can cancel it.");
-        }
-
-        if !matches!(pool.status, Status::INIT) {
-            env::panic_str("Pool must be in INIT status to be rejected");
-        }
-
-        let refund_amount = if self.refund_percent == 0 {
-            1_000_000_000_000_000_000_000
-        } else {
-            (pool.staking_amount * self.refund_percent as u128) / 100
-        };
-
-        Promise::new(pool.creator_id.clone())
-            .transfer(refund_amount);
-
-        pool.status = Status::CANCELED;
-        pool.staking_amount = 0;  
-        
-        self.pool_metadata_by_id.insert(&pool_id, &pool);
-
-        env::log_str(&format!(
-            "Pool {} has been canceled by creator. {}% of deposit ({} yoctoNEAR) returned to creator {}",
-            pool_id,
-            self.refund_percent,
-            refund_amount,
-            pool.creator_id
-        ));
-
-        pool
-    }
-
-    fn ft_on_transfer(
-        &mut self,
-        sender_id: AccountId,
-        amount: U128,
-        msg: String,
-    ) -> PromiseOrValue<U128> {
-        env::log_str(&format!("Received {} tokens from {}", amount.0, sender_id));
-        
-        let token_id = env::predecessor_account_id();
-
-        if !self.list_assets.iter().any(|asset| asset.token_id == token_id) {
-            env::panic_str("Token ID from message does not match any token ID in the list.");
-        }
-
-        let pool_id: PoolId = msg.parse()
-            .expect("Invalid pool ID in message");
-
-        let mut pool = self.pool_metadata_by_id.get(&pool_id)
-            .expect("Pool does not exist");
-
-        if !matches!(pool.status, Status::FUNDING) {
-            env::panic_str("Pool is not in funding status");
-        }
-
-        let current_time = env::block_timestamp();
-        if current_time < pool.time_start_pledge || current_time > pool.time_end_pledge {
-            env::panic_str("Not within pledge period");
-        }
-
-        if token_id != pool.token_id {
-            env::panic_str("Invalid token for this pool");
-        }
-
-        let amount_value = amount.0;
-        let mut user_records = if let Some(records) = self.user_records.get(&pool_id) {
-            records
-        } else {
-            let prefix = LaunchpadStorageKey::user_records_prefix(pool_id);
-            let map = UnorderedMap::new(prefix);
-            self.user_records.insert(&pool_id, &map);
-            map
-        };
-
-        let mut user_record = if let Some(record) = user_records.get(&sender_id) {
-            record
-        } else {
-            UserTokenDepositRecord {
-                amount: 0,
-                voting_power: 0.0,
-            }
-        };
-
-        user_record.amount += amount_value;
-        user_records.insert(&sender_id, &user_record);
-        self.user_records.insert(&pool_id, &user_records);
-        
-        pool.total_balance += amount_value;
-        self.pool_metadata_by_id.insert(&pool_id, &pool);
-        
-        env::log_str(&format!(
-            "User {} pledged {} tokens to pool {}",
-            sender_id, amount_value, pool_id
-        ));
-
-        PromiseOrValue::Value(U128(0))
     }
 
     fn check_funding_result(&mut self, pool_id: PoolId, is_waiting_funding: bool) -> PoolMetadata {
@@ -506,6 +335,107 @@ impl LaunchpadFeature for Launchpad {
         pool
     }
 
+    /* //////////////////////////////////////////////////////////////
+                            CREATOR FUNCTIONS
+    ////////////////////////////////////////////////////////////// */
+    #[payable]
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, min_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: U128) -> PoolMetadata {
+        let pool_id = self.all_pool_id.len() as u64 + 1;
+        let creator_id = env::signer_account_id();
+        let staking_amount = env::attached_deposit();
+
+        if staking_amount < self.min_staking_amount {
+            env::panic_str(&format!(
+                "Attached deposit must be at least {} yoctoNEAR ({} NEAR)",
+                self.min_staking_amount,
+                self.min_staking_amount / DEFAULT_MIN_STAKING
+            ));
+        }
+
+        // Check if the token is in the allowed list
+        if !self.list_assets.iter().any(|asset| asset.token_id == token_id) {
+            env::panic_str(&format!(
+                "Token {} is not supported. Only tokens added by admin can be used for pools",
+                token_id
+            ));
+        }
+
+        if time_start_pledge >= time_end_pledge {
+            env::panic_str("End time must be after start time");
+        }
+
+        if time_start_pledge <= env::block_timestamp() {
+            env::panic_str("Start time must be in the future");
+        }
+        
+        let pool = PoolMetadata {
+            pool_id,
+            campaign_id,
+            creator_id: creator_id.clone(),
+            staking_amount,
+            status: Status::INIT,
+            token_id: token_id.clone(),
+            total_balance: 0,
+            target_funding: target_funding.0,
+            time_start_pledge,
+            time_end_pledge,
+            min_multiple_pledge,
+        };
+
+        self.all_pool_id.insert(&pool_id);
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        env::log_str(&serde_json::json!({
+            "pool_id": pool_id,
+            "creator_id": creator_id,
+            "token_id": token_id,
+            "staking_amount": staking_amount
+        }).to_string());
+
+        pool
+    }
+
+    // creator pool should be cancel pool
+    // todo: remove refund_percent
+    fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if env::signer_account_id() != pool.creator_id {
+            env::panic_str("Only the creator of the pool can cancel it.");
+        }
+
+        if !matches!(pool.status, Status::INIT) {
+            env::panic_str("Pool must be in INIT status to be rejected");
+        }
+
+        let refund_amount = if self.refund_percent == 0 {
+            1_000_000_000_000_000_000_000
+        } else {
+            (pool.staking_amount * self.refund_percent as u128) / 100
+        };
+
+        Promise::new(pool.creator_id.clone())
+            .transfer(refund_amount);
+
+        pool.status = Status::CANCELED;
+        pool.staking_amount = 0;  
+        
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        env::log_str(&format!(
+            "Pool {} has been canceled by creator. {}% of deposit ({} yoctoNEAR) returned to creator {}",
+            pool_id,
+            self.refund_percent,
+            refund_amount,
+            pool.creator_id
+        ));
+
+        pool
+    }
+
+    // todo: creator_accept_voting
+    // todo: creator mới có thể gọi vào function này
     fn creator_set_status_pool_after_wating(&mut self, pool_id: PoolId, approve: bool) -> PoolMetadata {
         let signer_id = env::signer_account_id();
 
@@ -541,6 +471,77 @@ impl LaunchpadFeature for Launchpad {
         pool
     }
 
+    /* //////////////////////////////////////////////////////////////
+                            USER FUNCTIONS
+    ////////////////////////////////////////////////////////////// */
+    fn ft_on_transfer(
+        &mut self,
+        sender_id: AccountId,
+        amount: U128,
+        msg: String,
+    ) -> PromiseOrValue<U128> {
+        env::log_str(&format!("Received {} tokens from {}", amount.0, sender_id));
+        
+        let token_id = env::predecessor_account_id();
+
+        if !self.list_assets.iter().any(|asset| asset.token_id == token_id) {
+            env::panic_str("Token ID from message does not match any token ID in the list.");
+        }
+
+        let pool_id: PoolId = msg.parse()
+            .expect("Invalid pool ID in message");
+
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if !matches!(pool.status, Status::FUNDING) {
+            env::panic_str("Pool is not in funding status");
+        }
+
+        let current_time = env::block_timestamp();
+        if current_time < pool.time_start_pledge || current_time > pool.time_end_pledge {
+            env::panic_str("Not within pledge period");
+        }
+
+        if token_id != pool.token_id {
+            env::panic_str("Invalid token for this pool");
+        }
+
+        let amount_value = amount.0;
+        let mut user_records = if let Some(records) = self.user_records.get(&pool_id) {
+            records
+        } else {
+            let prefix = LaunchpadStorageKey::user_records_prefix(pool_id);
+            let map = UnorderedMap::new(prefix);
+            self.user_records.insert(&pool_id, &map);
+            map
+        };
+
+        let mut user_record = if let Some(record) = user_records.get(&sender_id) {
+            record
+        } else {
+            UserTokenDepositRecord {
+                amount: 0,
+                voting_power: 0.0,
+            }
+        };
+
+        user_record.amount += amount_value;
+        user_records.insert(&sender_id, &user_record);
+        self.user_records.insert(&pool_id, &user_records);
+        
+        pool.total_balance += amount_value;
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+        
+        env::log_str(&format!(
+            "User {} pledged {} tokens to pool {}",
+            sender_id, amount_value, pool_id
+        ));
+
+        PromiseOrValue::Value(U128(0))
+    }
+
+    // todo: claim_refund
     fn withdraw_fund_by_backer(&mut self, pool_id: PoolId) {
         let caller_id = env::signer_account_id();
 
