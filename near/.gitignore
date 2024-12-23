@@ -3,5 +3,5 @@
 
 /res/*
 
-/Cargo.lock
+Cargo.lock
 
