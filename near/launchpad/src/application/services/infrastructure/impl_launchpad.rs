@@ -259,6 +259,8 @@ impl LaunchpadFeature for Launchpad {
 
         self.pool_metadata_by_id.insert(&pool_id, &pool);
 
+        
+
         env::log_str(&format!(
             "Pool {} status updated to {} by owner {}",
             pool_id,
@@ -428,17 +430,15 @@ impl LaunchpadFeature for Launchpad {
         pool
     }
 
-    // todo: creator_accept_voting
-    // todo: creator mới có thể gọi vào function này
-    fn creator_set_status_pool_after_wating(&mut self, pool_id: PoolId, approve: bool) -> PoolMetadata {
+    fn creator_accept_voting(&mut self, pool_id: PoolId, approve: bool) -> PoolMetadata {
         let signer_id = env::signer_account_id();
-
-        if signer_id != self.owner_id {
-            env::panic_str("Only the owner can set the pool status after waiting.");
-        }
 
         let mut pool = self.pool_metadata_by_id.get(&pool_id)
             .expect("Pool does not exist");
+
+        if signer_id != pool.creator_id {
+            env::panic_str("Only the creator can set the pool status after waiting.");
+        }
 
         if pool.status != Status::WAITING {
             env::panic_str("Pool status must be WAITING to change it after waiting period.");
@@ -447,14 +447,14 @@ impl LaunchpadFeature for Launchpad {
         if approve {
             pool.status = Status::VOTING;
             env::log_str(&format!(
-                "Pool {} status changed to VOTING by owner {}",
+                "Pool {} status changed to VOTING by creator {}",
                 pool_id,
                 signer_id
             ));
         } else {
             pool.status = Status::REFUNDED;
             env::log_str(&format!(
-                "Pool {} status changed to REFUNDED by owner {}",
+                "Pool {} status changed to REFUNDED by creator {}",
                 pool_id,
                 signer_id
             ));
@@ -535,8 +535,7 @@ impl LaunchpadFeature for Launchpad {
         PromiseOrValue::Value(U128(0))
     }
 
-    // todo: claim_refund
-    fn withdraw_fund_by_backer(&mut self, pool_id: PoolId) {
+    fn claim_refund(&mut self, pool_id: PoolId) {
         let caller_id = env::signer_account_id();
 
         let mut pool = self.pool_metadata_by_id.get(&pool_id)
