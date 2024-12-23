@@ -396,7 +396,6 @@ impl LaunchpadFeature for Launchpad {
     }
 
     // creator pool should be cancel pool
-    // todo: remove refund_percent
     fn cancel_pool(&mut self, pool_id: PoolId) -> PoolMetadata {
         let mut pool = self.pool_metadata_by_id.get(&pool_id)
             .expect("Pool does not exist");
@@ -409,11 +408,7 @@ impl LaunchpadFeature for Launchpad {
             env::panic_str("Pool must be in INIT status to be rejected");
         }
 
-        let refund_amount = if self.refund_percent == 0 {
-            1_000_000_000_000_000_000_000
-        } else {
-            (pool.staking_amount * self.refund_percent as u128) / 100
-        };
+        let refund_amount = pool.staking_amount;
 
         Promise::new(pool.creator_id.clone())
             .transfer(refund_amount);
@@ -424,9 +419,8 @@ impl LaunchpadFeature for Launchpad {
         self.pool_metadata_by_id.insert(&pool_id, &pool);
 
         env::log_str(&format!(
-            "Pool {} has been canceled by creator. {}% of deposit ({} yoctoNEAR) returned to creator {}",
+            "Pool {} has been canceled by creator. Full deposit ({} yoctoNEAR) returned to creator {}",
             pool_id,
-            self.refund_percent,
             refund_amount,
             pool.creator_id
         ));
