@@ -96,7 +96,7 @@ impl LaunchpadStorageKey {
 }
 
 pub trait LaunchpadFeature {
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, mint_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: U128) -> PoolMetadata;
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, min_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: U128) -> PoolMetadata;
 
     fn ft_on_transfer(
         &mut self,
@@ -130,6 +130,7 @@ pub trait LaunchpadFeature {
 
 
 pub trait LaunchpadGet {
+    fn is_token_supported(&self, token_id: AccountId) -> bool;
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>>;
     fn get_pools_by_status(&self, status_str: String) -> Option<Vec<PoolMetadata>>;
     fn get_detail_pool(&self, pool_id: PoolId) -> Option<PoolMetadata>;

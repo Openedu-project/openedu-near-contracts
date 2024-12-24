@@ -12,6 +12,10 @@ impl LaunchpadGet for Launchpad {
                             GETTER FUNCTIONS
     ////////////////////////////////////////////////////////////// */
 
+    fn is_token_supported(&self, token_id: AccountId) -> bool {
+        self.list_assets.iter().any(|asset| asset.token_id == token_id)
+    }
+
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>> {
         if self.all_pool_id.is_empty() {
             return None;

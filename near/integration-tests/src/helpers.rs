@@ -20,10 +20,10 @@ pub struct PoolMetadata {
     pub status: Status,
     pub token_id: AccountId,
     pub total_balance: u128,
+    pub target_funding: u128,
     pub time_start_pledge: u64,
     pub time_end_pledge: u64,
-    pub mint_multiple_pledge: u8,
-    pub user_records: Vec<UserTokenDepositRecord>
+    pub min_multiple_pledge: u128,
 }
 
 
@@ -40,18 +40,30 @@ pub struct Assets {
 pub enum Status {
     INIT,
     FUNDING,
+    REJECTED,
+    CANCELED,
+    FAILED,
     WAITING,
+    REFUNDED,
     VOTING,
     CLOSED,
+    SUCCESSFUL
 }
+
 
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct UserTokenDepositRecord {
+    pub amount: u128, // pledge amount if backer deposited +amount
+    pub voting_power: f64, // 0
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct UserRecordDetail {
     pub user_id: AccountId,
-    pub amount: u128,
-    pub voting_power: f64,
+    pub record: UserTokenDepositRecord,
 }
 
 pub async fn storage_deposit(

@@ -48,9 +48,16 @@ async fn main() -> anyhow::Result<()> {
         .await?
         .into_result()?;
 
-    // Create Creator Account
+    // Create Creator Pool Account
     let creator = owner
         .create_subaccount("creator")
+        .initial_balance(INITIAL_NEAR)
+        .transact()
+        .await?
+        .into_result()?;
+
+    let backer = owner
+        .create_subaccount("backer")
         .initial_balance(INITIAL_NEAR)
         .transact()
         .await?
@@ -77,18 +84,34 @@ async fn main() -> anyhow::Result<()> {
         .await?
         .into_result()?;
 
-    // Create species
-
-    test_init_pool(
-    )
-    .await?;
-    
+    // test add token to launchpad contract
+    test_add_token(&launchpad_contract , &owner_launchpad, &ft_contract).await?;
+        
     Ok(())
 }
 
-pub async fn test_init_pool(
+pub async fn test_add_token(
+    launchpad_contract: &Contract,
+    owner_launchpad: &Account,
+    ft_contract: &Contract,
 ) -> anyhow::Result<()> {
-    println!("      Passed ✅ test_init_pool");
-    Ok(())
-}
+    owner_launchpad
+        .call(launchpad_contract.id(), "add_token")
+        .args_json(json!({"token_id": ft_contract.id()}))
+        .transact()
+        .await?
+        .into_result()?;
 
+    let token_valid: bool = owner_launchpad
+        .call(launchpad_contract.id(), "is_token_supported")
+        .args_json(json!({
+            "token_id": ft_contract.id()
+        }))
+        .transact()
+        .await?
+        .json()?;
+    assert_eq!(token_valid, true);
+    println!("      Passed ✅ test_add_token");
+    Ok(())
+
+}
