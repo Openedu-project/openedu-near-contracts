@@ -88,7 +88,8 @@ async fn main() -> anyhow::Result<()> {
     // test add token to launchpad contract
     test_add_token(&launchpad_contract, &owner_launchpad, &ft_contract).await?;
     test_init_pool(&launchpad_contract, &owner_launchpad, &creator, &ft_contract).await?;
-    
+    test_admin_set_status_pool_pre_funding(&launchpad_contract, &owner_launchpad).await?;
+
     Ok(())
 }
 
@@ -168,5 +169,38 @@ pub async fn test_init_pool(
     assert_eq!(pool_metadata.time_end_pledge, time_end_pledge, "End time should match.");
     assert_eq!(pool_metadata.target_funding, 1000000, "Target funding should match.");
     println!("      Passed ✅ test_init_pool");
+    Ok(())
+}
+
+pub async fn test_admin_set_status_pool_pre_funding(
+    launchpad_contract: &Contract, 
+    owner_launchpad: &Account
+) -> anyhow::Result<()> {   
+
+    owner_launchpad
+        .call(launchpad_contract.id(), "admin_set_status_pool_pre_funding")
+        .args_json(json!({
+            "pool_id": 1, 
+            "approve": true
+        }))
+        .transact()
+        .await?
+        .into_result()?;
+
+    let pool1: Option<PoolMetadata> = owner_launchpad
+        .call(launchpad_contract.id(), "get_detail_pool")
+        .args_json(json!({
+            "pool_id": 1
+        }))
+        .transact()
+        .await?
+        .json()?;
+
+    assert!(pool1.is_some(), "Pool should be initialized and exist.");
+    let pool_metadata = pool1.unwrap();
+    
+    assert_eq!(pool_metadata.status, Status::FUNDING, "Pool status should be FUNDING.");
+
+    println!("      Passed ✅ test_admin_set_status_pool_pre_funding");
     Ok(())
 }
