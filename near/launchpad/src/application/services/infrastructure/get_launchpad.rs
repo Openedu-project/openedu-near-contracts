@@ -1,4 +1,4 @@
-use near_sdk::{near_bindgen, AccountId, json_types::U128};
+use near_sdk::{near_bindgen, AccountId, json_types::U128, env};
 
 use crate::models::{
     contract::{Launchpad, LaunchpadGet, LaunchpadExt, PoolMetadata, Status, UserTokenDepositRecord, UserRecordDetail}, 
@@ -105,5 +105,9 @@ impl LaunchpadGet for Launchpad {
         } else {
             None
         }
+    }
+
+    fn get_current_timestamp(&self) -> u64 {
+        env::block_timestamp()
     }
 }

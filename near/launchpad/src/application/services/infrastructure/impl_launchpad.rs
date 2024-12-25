@@ -387,13 +387,6 @@ impl LaunchpadFeature for Launchpad {
         self.all_pool_id.insert(&pool_id);
         self.pool_metadata_by_id.insert(&pool_id, &pool);
 
-        env::log_str(&serde_json::json!({
-            "pool_id": pool_id,
-            "creator_id": creator_id,
-            "token_id": token_id,
-            "staking_amount": staking_amount
-        }).to_string());
-
         pool
     }
 

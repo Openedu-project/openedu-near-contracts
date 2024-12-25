@@ -138,4 +138,5 @@ pub trait LaunchpadGet {
     fn get_refund_reject_pool(&self) -> u8;
     fn get_min_staking_amount(&self) -> U128;
     fn get_user_records_by_pool_id(&self, pool_id: PoolId) -> Option<Vec<UserRecordDetail>>;
+    fn get_current_timestamp(&self) -> u64;
 }
