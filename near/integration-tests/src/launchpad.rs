@@ -99,7 +99,7 @@ async fn main() -> anyhow::Result<()> {
     test_add_token(&launchpad_contract, &owner_launchpad, &ft_contract).await?;
     test_init_pool(&launchpad_contract, &owner_launchpad, &creator, &ft_contract).await?;
     test_admin_set_status_pool_pre_funding(&launchpad_contract, &owner_launchpad).await?;
-    // test_backer1_deposit_token_to_pool1(&ft_contract, &launchpad_contract, &backer1).await?;
+    test_backers_deposit_token_to_pool1(&ft_contract, &launchpad_contract, &backer1, &backer2).await?;
     Ok(())
 }
 
@@ -198,7 +198,7 @@ pub async fn test_init_pool(
         .await?
         .json()?;
     
-    let time_start_pledge = time_now + 60_000_000_000; // 1 minute in nanoseconds
+    let time_start_pledge = time_now + 1_000_000_000; // 1 s in nanoseconds
     let time_end_pledge = time_now + 20 * 60_000_000_000; // 20 minute
 
     creator
@@ -270,32 +270,50 @@ pub async fn test_admin_set_status_pool_pre_funding(
     Ok(())
 }
 
-// pub async fn test_backer1_deposit_token_to_pool1(
-//     ft_contract: &Contract,
-//     launchpad_contract: &Contract, 
-//     backer1: &Account
-// ) -> anyhow::Result<()> {
-//     backer1
-//         .call(ft_contract.id(), "ft_transfer_call")
-//         .args_json(json!({
-//             "receiver_id": launchpad_contract.id(), 
-//             "amount": "10000000000000", 
-//             "msg": "1"
-//         }))
-//         .deposit(DEFAULT_DEPOSIT)
-//         .transact()
-//         .await?
-//         .into_result()?;
+pub async fn test_backers_deposit_token_to_pool1(
+    ft_contract: &Contract,
+    launchpad_contract: &Contract, 
+    backer1: &Account,
+    backer2: &Account
+) -> anyhow::Result<()> {
+    
+    let backers = vec![
+        (backer1, "10000000000000"),
+        (backer2, "20000000000000"),
+    ];
 
-//     let list_records: Option<Vec<UserRecordDetail>> = owner_launchpad
-//         .call(launchpad_contract.id(), "get_user_records_by_pool_id")
-//         .args_json(json!({
-//             "pool_id": 1
-//         }))
-//         .transact()
-//         .await?
-//         .json()?;
+    for (backer, amount) in backers {
+        backer
+            .call(ft_contract.id(), "ft_transfer_call")
+            .args_json(json!({
+                "receiver_id": launchpad_contract.id(), 
+                "amount": amount, 
+                "msg": "1"
+            }))
+            .deposit(DEFAULT_DEPOSIT)
+            .gas(NearGas::from_tgas(300)) // Add more gas to prevent execution error
+            .transact()
+            .await?
+            .into_result()?;
+    }
+
+    let list_records: Option<Vec<UserRecordDetail>> = backer1
+        .call(launchpad_contract.id(), "get_user_records_by_pool_id")
+        .args_json(json!({
+            "pool_id": 1
+        }))
+        .transact()
+        .await?
+        .json()?;
         
-//     println!("list: {}", list_records);
-//     Ok(())
-// }
+    if let Some(records) = list_records {
+        for record in records {
+            println!("User ID: {}, Amount: {}", record.user_id, record.record.amount);
+        }
+    } else {
+        println!("No records found for the given pool_id.");
+    }
+        
+    println!("      Passed ✅ test_backers_deposit_token_to_pool1");
+    Ok(())
+}
