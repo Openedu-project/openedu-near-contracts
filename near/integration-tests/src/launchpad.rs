@@ -8,7 +8,7 @@ use near_workspaces::{Account, Contract};
 
 
 use helpers::{
-    storage_deposit, Status, PoolMetadata
+    storage_deposit, Status, PoolMetadata, UserRecordDetail
 };
 
 use crate::helpers::{};
@@ -21,6 +21,7 @@ const INITIAL_NEAR: NearToken = NearToken::from_near(30);
 const DEFAULT_DEPOSIT: NearToken = NearToken::from_yoctonear(1);
 const DEFAULT_GAS: NearGas = NearGas::from_tgas(200);
 const INIT_POOL: NearToken = NearToken::from_near(1);
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -58,8 +59,15 @@ async fn main() -> anyhow::Result<()> {
         .await?
         .into_result()?;
 
-    let backer = owner
-        .create_subaccount("backer")
+    let backer1 = owner
+        .create_subaccount("backer1")
+        .initial_balance(INITIAL_NEAR)
+        .transact()
+        .await?
+        .into_result()?;
+
+    let backer2 = owner
+        .create_subaccount("backer2")
         .initial_balance(INITIAL_NEAR)
         .transact()
         .await?
@@ -84,12 +92,69 @@ async fn main() -> anyhow::Result<()> {
         .transact()
         .await?
         .into_result()?;
+    // transfer token to backer 1&2
+    test_transfer_token_to_all_backer(&owner_ft, &ft_contract, &backer1, &backer2).await?;
 
     // test add token to launchpad contract
     test_add_token(&launchpad_contract, &owner_launchpad, &ft_contract).await?;
     test_init_pool(&launchpad_contract, &owner_launchpad, &creator, &ft_contract).await?;
     test_admin_set_status_pool_pre_funding(&launchpad_contract, &owner_launchpad).await?;
+    // test_backer1_deposit_token_to_pool1(&ft_contract, &launchpad_contract, &backer1).await?;
+    Ok(())
+}
 
+pub async fn test_transfer_token_to_all_backer(
+    owner_ft: &Account, 
+    ft_contract: &Contract, 
+    backer1: &Account, 
+    backer2: &Account
+) -> anyhow::Result<()> {
+
+    // add storage for two backer
+    storage_deposit(owner_ft, ft_contract, backer1).await?;
+    storage_deposit(owner_ft, ft_contract, backer2).await?;
+    
+    // transfer
+    owner_ft
+        .call(ft_contract.id(), "ft_transfer")
+        .args_json(json!({
+            "receiver_id": backer1.id(),
+            "amount": U128(parse_near!("10 N"))
+        }))
+        .deposit(DEFAULT_DEPOSIT)
+        .transact()
+        .await?
+        .into_result()?;
+
+    owner_ft
+        .call(ft_contract.id(), "ft_transfer")
+        .args_json(json!({
+            "receiver_id": backer2.id(),
+            "amount": U128(parse_near!("10 N"))
+        }))
+        .deposit(DEFAULT_DEPOSIT)
+        .transact()
+        .await?
+        .into_result()?;
+    
+    let balance_backer1: U128 = ft_contract
+        .call("ft_balance_of")
+        .args_json(json!({"account_id": backer1.id()}))
+        .view()
+        .await?
+        .json()?;
+    
+    let balance_backer2: U128 = ft_contract
+        .call("ft_balance_of")
+        .args_json(json!({"account_id": backer2.id()}))
+        .view()
+        .await?
+        .json()?;
+    
+    assert_eq!(balance_backer1, U128::from(10_000_000_000_000_000_000_000_000), "Backer1 balance should be 10,000,000,000,000,000,000,000,000 yoctoNEAR");
+    assert_eq!(balance_backer2, U128::from(10_000_000_000_000_000_000_000_000), "Backer2 balance should be 10,000,000,000,000,000,000,000,000 yoctoNEAR");
+
+    println!("      Passed ✅ test_transfer_token_to_all_backer");
     Ok(())
 }
 
@@ -144,7 +209,7 @@ pub async fn test_init_pool(
             "min_multiple_pledge": 10000,
             "time_start_pledge": time_start_pledge,
             "time_end_pledge": time_end_pledge,
-            "target_funding": "1000000"
+            "target_funding": "10000000"
         }))
         .deposit(INIT_POOL)
         .transact()
@@ -167,7 +232,7 @@ pub async fn test_init_pool(
     assert_eq!(pool_metadata.min_multiple_pledge, 10000, "Min multiple pledge should match.");
     assert_eq!(pool_metadata.time_start_pledge, time_start_pledge, "Start time should match.");
     assert_eq!(pool_metadata.time_end_pledge, time_end_pledge, "End time should match.");
-    assert_eq!(pool_metadata.target_funding, 1000000, "Target funding should match.");
+    assert_eq!(pool_metadata.target_funding, 10000000, "Target funding should match.");
     println!("      Passed ✅ test_init_pool");
     Ok(())
 }
@@ -204,3 +269,33 @@ pub async fn test_admin_set_status_pool_pre_funding(
     println!("      Passed ✅ test_admin_set_status_pool_pre_funding");
     Ok(())
 }
+
+// pub async fn test_backer1_deposit_token_to_pool1(
+//     ft_contract: &Contract,
+//     launchpad_contract: &Contract, 
+//     backer1: &Account
+// ) -> anyhow::Result<()> {
+//     backer1
+//         .call(ft_contract.id(), "ft_transfer_call")
+//         .args_json(json!({
+//             "receiver_id": launchpad_contract.id(), 
+//             "amount": "10000000000000", 
+//             "msg": "1"
+//         }))
+//         .deposit(DEFAULT_DEPOSIT)
+//         .transact()
+//         .await?
+//         .into_result()?;
+
+//     let list_records: Option<Vec<UserRecordDetail>> = owner_launchpad
+//         .call(launchpad_contract.id(), "get_user_records_by_pool_id")
+//         .args_json(json!({
+//             "pool_id": 1
+//         }))
+//         .transact()
+//         .await?
+//         .json()?;
+        
+//     println!("list: {}", list_records);
+//     Ok(())
+// }
