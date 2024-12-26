@@ -12,7 +12,7 @@ use crate::models::{
 use near_sdk::collections::{UnorderedMap};
 
 pub const GAS_FOR_CROSS_CALL: Gas = Gas(3_000_000_000_000);
-pub const GAS_FOR_FT_TRANSFER_CALL: Gas = Gas(300_000_000_000_000);
+pub const GAS_FOR_FT_TRANSFER_CALL: Gas = Gas(3_000_000_000_000);
 pub const ATTACHED_TRANSFER_FT: u128 = 1;
 pub const ATTACHED_STORAGE_DEPOSIT: u128 = 1_250_000_000_000_000_000_000;
 pub const GAS_FOR_REFUND_CALLBACK: Gas = Gas(5_000_000_000_000);
@@ -211,8 +211,6 @@ impl LaunchpadFeature for Launchpad {
             env::panic_str("Insufficient pool balance for the requested withdrawal amount.");
         }
 
-        pool.total_balance -= amount.0;
-
         cross_edu::ext(pool.token_id.clone())
             .with_static_gas(GAS_FOR_FT_TRANSFER_CALL)
             .with_attached_deposit(1)
@@ -220,6 +218,8 @@ impl LaunchpadFeature for Launchpad {
                 pool.creator_id.clone(),
                 amount,
             );
+
+        pool.total_balance -= amount.0;
 
         env::log_str(&format!(
             "Withdrawn {} tokens to creator {}. Remaining pool balance: {}",
@@ -551,15 +551,21 @@ impl LaunchpadFeature for Launchpad {
             env::panic_str("No funds available for withdrawal");
         }
 
+        cross_edu::ext(pool.token_id.clone())
+            .with_static_gas(GAS_FOR_FT_TRANSFER_CALL)
+            .with_attached_deposit(1)
+            .ft_transfer(
+                caller_id.clone(),
+                U128(refund_amount),
+            );
+
         // Update the user's record amount to 0
         user_record.amount = 0;
         user_records.insert(&caller_id, &user_record);
         self.user_records.insert(&pool_id, &user_records);
 
-        Promise::new(caller_id.clone()).transfer(refund_amount);
-
         env::log_str(&format!(
-            "User {} withdrew {} yoctoNEAR from pool {}",
+            "User {} withdrew {} Token from pool {}",
             caller_id, refund_amount, pool_id
         ));
     }
