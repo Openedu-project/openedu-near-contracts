@@ -1,4 +1,4 @@
-use near_sdk::{near_bindgen, AccountId, json_types::U128};
+use near_sdk::{near_bindgen, AccountId, json_types::U128, env};
 
 use crate::models::{
     contract::{Launchpad, LaunchpadGet, LaunchpadExt, PoolMetadata, Status, UserTokenDepositRecord, UserRecordDetail}, 
@@ -11,6 +11,10 @@ impl LaunchpadGet for Launchpad {
     /* //////////////////////////////////////////////////////////////
                             GETTER FUNCTIONS
     ////////////////////////////////////////////////////////////// */
+
+    fn is_token_supported(&self, token_id: AccountId) -> bool {
+        self.list_assets.iter().any(|asset| asset.token_id == token_id)
+    }
 
     fn get_all_pool(&self) -> Option<Vec<PoolMetadata>> {
         if self.all_pool_id.is_empty() {
@@ -101,5 +105,9 @@ impl LaunchpadGet for Launchpad {
         } else {
             None
         }
+    }
+
+    fn get_current_timestamp(&self) -> u64 {
+        env::block_timestamp()
     }
 }
