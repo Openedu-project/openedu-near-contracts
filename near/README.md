@@ -73,10 +73,16 @@ near call $LAUNCHPAD change_admin '{"new_admin": "new-admin.testnet"}' --account
 near call $LAUNCHPAD delete_token_by_token_id '{"token_id": "token-1.testnet"}' --accountId $ADMIN
 
 # Initialize a new pool
-near call $LAUNCHPAD init_pool '{"campaign_id": "campaign-1", "token_id": "'$FT'", "min_multiple_pledge": 100, "time_start_pledge": 1633046400000000000, "time_end_pledge": 1633132800000000000, "target_funding": "1000000"}' --accountId $ADMIN --deposit 1
+near call $LAUNCHPAD init_pool '{"campaign_id": "campaign-1", "token_id": "'$FT'", "min_multiple_pledge": 100, "target_funding": "1000000"}' --accountId $CREATOR --deposit 1
 
-# Admin set status pool pre-funding
+# Admin set status pool pre-funding (if approve status to APPROVED)
 near call $LAUNCHPAD admin_set_status_pool_pre_funding '{"pool_id": 1, "approve": true}' --accountId $ADMIN
+
+# Creator set APPROVED to FUNDING and set time_start and time_funding
+near call $LAUNCHPAD set_funding_pool_by_creator '{"pool_id": 1, "time_start_pledge": "'$TIME_START_NANO'", funding_duration_days: "'$DAYS_FUNDING'"}' --accountId $CREATOR
+
+# Admin check status after init pool 15 days, if don't APPROVED, set to REJECTED
+near call $LAUNCHPAD admin_check_pool_status_after_init_15days '{"pool_id": 1}' --accountId $ADMIN
 
 # Backer deposit
 near call $FT ft_transfer_call '{"receiver_id": "'$LAUNCHPAD'", "amount": "1000000000000000000000000", "msg": "'$POOL_ID'"}' --accountId $BACKER --depositYocto 1

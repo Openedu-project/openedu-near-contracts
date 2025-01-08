@@ -23,41 +23,6 @@ impl LaunchpadFeature for Launchpad {
     /* //////////////////////////////////////////////////////////////
                             ADMIN FUNCTIONS
     ////////////////////////////////////////////////////////////// */
-    fn change_pool_funding_time(&mut self, pool_id: u64, time_start_pledge: u64, time_end_pledge: u64) {
-        let signer_id = env::signer_account_id();
-        
-        if signer_id != self.owner_id {
-            env::panic_str("Only admin can change pool information.");
-        }
-
-        if let Some(mut pool) = self.pool_metadata_by_id.get(&pool_id) {
-            if pool.status != Status::INIT {
-                env::panic_str("Pool status must be INIT to change funding time.");
-            }
-            
-            if time_start_pledge >= time_end_pledge {
-                env::panic_str("End time must be after start time");
-            }
-
-            if time_start_pledge <= env::block_timestamp() {
-                env::panic_str("Start time must be in the future");
-            }
-
-            pool.time_start_pledge = time_start_pledge;
-            pool.time_end_pledge = time_end_pledge;
-            
-            self.pool_metadata_by_id.insert(&pool_id, &pool);
-
-            env::log_str(&format!(
-                "Pool {} information updated by admin {}",
-                pool_id,
-                signer_id
-            ));
-        } else {
-            env::panic_str("Pool with the given ID does not exist.");
-        }
-    }
-
     // admin can add list token use payable
     fn add_token(
         &mut self,
@@ -126,7 +91,43 @@ impl LaunchpadFeature for Launchpad {
         ));
     }
 
-    // admin can set pool status to FUNDING or CLOSED
+    fn admin_check_pool_status_after_init_15days(&mut self, pool_id: PoolId) {
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if !matches!(pool.status, Status::INIT) {
+            env::panic_str("Pool must be in INIT status");
+        }
+
+        let current_time = env::block_timestamp();
+        let fifteen_days_ns = 15 * 24 * 60 * 60 * 1_000_000_000; // 15 days in nanoseconds
+
+        if current_time > pool.time_init + fifteen_days_ns {
+            let refund_amount = if self.refund_percent == 0 {
+                1_000_000_000_000_000_000_000 // 1 NEAR
+            } else {
+                (pool.staking_amount * self.refund_percent as u128) / 100
+            };
+
+            Promise::new(pool.creator_id.clone())
+                .transfer(refund_amount);
+
+            pool.status = Status::REJECTED;
+            pool.staking_amount = 0;
+
+            self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+            env::log_str(&format!(
+                "Pool {} has been auto-rejected after 15 days in INIT status. {}% of deposit ({} yoctoNEAR) returned to creator {}",
+                pool_id,
+                self.refund_percent,
+                refund_amount,
+                pool.creator_id
+            ));
+        }
+    }
+
+    // admin can set pool status to FUNDING or REJECTED
     fn admin_set_status_pool_pre_funding(&mut self, pool_id: PoolId, approve: bool) -> PoolMetadata {
         if env::signer_account_id() != self.owner_id {
             env::panic_str("Only admin can set pool status");
@@ -140,9 +141,9 @@ impl LaunchpadFeature for Launchpad {
         }
 
         if approve {
-            pool.status = Status::FUNDING;
+            pool.status = Status::APPROVED;
             env::log_str(&format!(
-                "Pool {} has been approved and is now in FUNDING status",
+                "Pool {} has been approved and is now in APPROVED status",
                 pool_id
             ));
         } else {
@@ -203,7 +204,7 @@ impl LaunchpadFeature for Launchpad {
         let mut pool = self.pool_metadata_by_id.get(&pool_id)
             .expect("Pool does not exist");
 
-        if pool.status != Status::CLOSED {
+        if pool.status != Status::VOTING {
             env::panic_str("Pool must be CLOSED to withdraw funds.");
         }
 
@@ -341,7 +342,7 @@ impl LaunchpadFeature for Launchpad {
                             CREATOR FUNCTIONS
     ////////////////////////////////////////////////////////////// */
     #[payable]
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, min_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: U128) -> PoolMetadata {
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, min_multiple_pledge: u128, target_funding: U128) -> PoolMetadata {
         let pool_id = self.all_pool_id.len() as u64 + 1;
         let creator_id = env::signer_account_id();
         let staking_amount = env::attached_deposit();
@@ -361,14 +362,6 @@ impl LaunchpadFeature for Launchpad {
                 token_id
             ));
         }
-
-        if time_start_pledge >= time_end_pledge {
-            env::panic_str("End time must be after start time");
-        }
-
-        if time_start_pledge <= env::block_timestamp() {
-            env::panic_str("Start time must be in the future");
-        }
         
         let pool = PoolMetadata {
             pool_id,
@@ -379,8 +372,10 @@ impl LaunchpadFeature for Launchpad {
             token_id: token_id.clone(),
             total_balance: 0,
             target_funding: target_funding.0,
-            time_start_pledge,
-            time_end_pledge,
+            time_init: env::block_timestamp(),
+            time_start_pledge: 0,
+            time_end_pledge: 0,
+            funding_duration_days: 0,
             min_multiple_pledge,
         };
 
@@ -388,6 +383,43 @@ impl LaunchpadFeature for Launchpad {
         self.pool_metadata_by_id.insert(&pool_id, &pool);
 
         pool
+    }
+
+    fn set_funding_pool_by_creator(&mut self, pool_id: PoolId, time_start_pledge: u64, funding_duration_days: u64) {
+        
+        let mut pool = self.pool_metadata_by_id.get(&pool_id)
+            .expect("Pool does not exist");
+
+        if env::signer_account_id() != pool.creator_id {
+            env::panic_str("Only the creator of the pool can set funding parameters.");
+        }
+
+        if !matches!(pool.status, Status::INIT) {
+            env::panic_str("Pool must be in INIT status to set funding parameters");
+        }
+
+        if funding_duration_days == 0 {
+            env::panic_str("Funding duration must be greater than 0 days");
+        }
+
+        if time_start_pledge <= env::block_timestamp() {
+            env::panic_str("Start time must be in the future");
+        }
+
+        pool.time_start_pledge = time_start_pledge;
+        pool.time_end_pledge = time_start_pledge + (funding_duration_days as u64 * 24 * 60 * 60 * 1_000_000_000);
+        pool.funding_duration_days = funding_duration_days;
+        pool.status = Status::FUNDING;
+
+        self.pool_metadata_by_id.insert(&pool_id, &pool);
+
+        env::log_str(&format!(
+            "Pool {} funding parameters set - Start time: {}, Duration: {} days",
+            pool_id,
+            time_start_pledge,
+            funding_duration_days
+        ));
+
     }
 
     // creator pool should be cancel pool
