@@ -394,8 +394,8 @@ impl LaunchpadFeature for Launchpad {
             env::panic_str("Only the creator of the pool can set funding parameters.");
         }
 
-        if !matches!(pool.status, Status::INIT) {
-            env::panic_str("Pool must be in INIT status to set funding parameters");
+        if !matches!(pool.status, Status::APPROVED) {
+            env::panic_str("Pool must be in APPROVED status to set funding parameters");
         }
 
         if funding_duration_days == 0 {
