@@ -316,7 +316,7 @@ impl LaunchpadFeature for Launchpad {
                     pool_id
                 ));
             },
-            _ if is_waiting_funding => {
+            _ if pool.total_balance >= (pool.target_funding * 80 / 100) && is_waiting_funding => {
                 pool.status = Status::WAITING;
                 pool.time_end_pledge += 3 * 24 * 60 * 60 * 1_000_000_000; // Add 3 days in nanoseconds
                 env::log_str(&format!(
@@ -327,7 +327,7 @@ impl LaunchpadFeature for Launchpad {
             _ => {
                 pool.status = Status::REFUNDED;
                 env::log_str(&format!(
-                    "Pool {} status changed to CLOSED",
+                    "Pool {} status changed to REFUNDED",
                     pool_id
                 ));
             }
@@ -407,7 +407,7 @@ impl LaunchpadFeature for Launchpad {
         }
 
         pool.time_start_pledge = time_start_pledge;
-        pool.time_end_pledge = time_start_pledge + (funding_duration_days as u64 * 24 * 60 * 60 * 1_000_000_000);
+        pool.time_end_pledge = time_start_pledge + (funding_duration_days as u64 * 60 * 1_000_000_000);
         pool.funding_duration_days = funding_duration_days;
         pool.status = Status::FUNDING;
 
