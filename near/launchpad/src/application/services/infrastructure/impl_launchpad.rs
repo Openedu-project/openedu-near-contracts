@@ -244,6 +244,7 @@ impl LaunchpadFeature for Launchpad {
 
         let new_status = match status.as_str() {
             "INIT" => Status::INIT,
+            "APPROVED" => Status::APPROVED,
             "FUNDING" => Status::FUNDING,
             "REJECTED" => Status::REJECTED,
             "CANCELED" => Status::CANCELED,
@@ -439,7 +440,7 @@ impl LaunchpadFeature for Launchpad {
 
         Promise::new(pool.creator_id.clone())
             .transfer(refund_amount);
-
+        
         pool.status = Status::CANCELED;
         pool.staking_amount = 0;  
         
@@ -500,63 +501,80 @@ impl LaunchpadFeature for Launchpad {
         msg: String,
     ) -> PromiseOrValue<U128> {
         env::log_str(&format!("Received {} tokens from {}", amount.0, sender_id));
-        
+    
         let token_id = env::predecessor_account_id();
-
+    
         if !self.list_assets.iter().any(|asset| asset.token_id == token_id) {
-            env::panic_str("Token ID from message does not match any token ID in the list.");
+            let error_msg = "Token ID from message does not match any token ID in the list.";
+            env::log_str(error_msg);
+            return PromiseOrValue::Value(amount); // Refund
         }
-
-        let pool_id: PoolId = msg.parse()
-            .expect("Invalid pool ID in message");
-
-        let mut pool = self.pool_metadata_by_id.get(&pool_id)
-            .expect("Pool does not exist");
-
-        if !matches!(pool.status, Status::FUNDING) {
-            env::panic_str("Pool is not in funding status");
-        }
-
-        let current_time = env::block_timestamp();
-        if current_time < pool.time_start_pledge || current_time > pool.time_end_pledge {
-            env::panic_str("Not within pledge period");
-        }
-
-        if token_id != pool.token_id {
-            env::panic_str("Invalid token for this pool");
-        }
-
-        let amount_value = amount.0;
-        let mut user_records = if let Some(records) = self.user_records.get(&pool_id) {
-            records
-        } else {
-            let prefix = LaunchpadStorageKey::user_records_prefix(pool_id);
-            let map = UnorderedMap::new(prefix);
-            self.user_records.insert(&pool_id, &map);
-            map
-        };
-
-        let mut user_record = if let Some(record) = user_records.get(&sender_id) {
-            record
-        } else {
-            UserTokenDepositRecord {
-                amount: 0,
-                voting_power: 0.0,
+    
+        let pool_id: PoolId = match msg.parse() {
+            Ok(id) => id,
+            Err(_) => {
+                let error_msg = "Invalid pool ID in message";
+                env::log_str(error_msg);
+                return PromiseOrValue::Value(amount); // Refund
             }
         };
-
+    
+        let mut pool = match self.pool_metadata_by_id.get(&pool_id) {
+            Some(p) => p,
+            None => {
+                let error_msg = "Pool does not exist";
+                env::log_str(error_msg);
+                return PromiseOrValue::Value(amount); // Refund
+            }
+        };
+    
+        if !matches!(pool.status, Status::FUNDING) {
+            let error_msg = "Pool is not in funding status";
+            env::log_str(error_msg);
+            return PromiseOrValue::Value(amount); // Refund
+        }
+    
+        let current_time = env::block_timestamp();
+        if current_time < pool.time_start_pledge || current_time > pool.time_end_pledge {
+            let error_msg = "Not within pledge period";
+            env::log_str(error_msg);
+            return PromiseOrValue::Value(amount); // Refund
+        }
+    
+        if token_id != pool.token_id {
+            let error_msg = "Invalid token for this pool";
+            env::log_str(error_msg);
+            return PromiseOrValue::Value(amount); // Refund
+        }
+    
+        // If all checks pass, process the pledge
+        let amount_value = amount.0;
+        let mut user_records = self
+            .user_records
+            .get(&pool_id)
+            .unwrap_or_else(|| {
+                let prefix = LaunchpadStorageKey::user_records_prefix(pool_id);
+                UnorderedMap::new(prefix)
+            });
+    
+        let mut user_record = user_records.get(&sender_id).unwrap_or(UserTokenDepositRecord {
+            amount: 0,
+            voting_power: 0.0,
+        });
+    
         user_record.amount += amount_value;
         user_records.insert(&sender_id, &user_record);
         self.user_records.insert(&pool_id, &user_records);
-        
+    
         pool.total_balance += amount_value;
         self.pool_metadata_by_id.insert(&pool_id, &pool);
-        
+    
         env::log_str(&format!(
             "User {} pledged {} tokens to pool {}",
             sender_id, amount_value, pool_id
         ));
-
+    
+        // If successful, return 0 (no refund)
         PromiseOrValue::Value(U128(0))
     }
 
