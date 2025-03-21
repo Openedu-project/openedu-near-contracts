@@ -4,4 +4,6 @@
 /res/*
 
 Cargo.lock
+node_modules/
+
 

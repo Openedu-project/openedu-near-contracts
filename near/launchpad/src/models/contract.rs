@@ -37,8 +37,10 @@ pub struct PoolMetadata {
     pub token_id: AccountId,
     pub total_balance: u128,
     pub target_funding: u128,
+    pub time_init: u64,
     pub time_start_pledge: u64,
     pub time_end_pledge: u64,
+    pub funding_duration_days: u64,
     pub min_multiple_pledge: u128,
 }
 
@@ -53,6 +55,7 @@ pub struct Assets {
 #[serde(crate = "near_sdk::serde")]
 pub enum Status {
     INIT,
+    APPROVED,
     FUNDING,
     REJECTED,
     CANCELED,
@@ -96,15 +99,15 @@ impl LaunchpadStorageKey {
 }
 
 pub trait LaunchpadFeature {
-    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, min_multiple_pledge: u128, time_start_pledge: u64, time_end_pledge: u64, target_funding: U128) -> PoolMetadata;
-
+    fn init_pool(&mut self, campaign_id: String, token_id: AccountId, min_multiple_pledge: u128, target_funding: U128) -> PoolMetadata;
+    fn set_funding_pool_by_creator(&mut self, pool_id: PoolId, time_start_pledge: u64, funding_duration_days: u64);
+    fn admin_check_pool_status_after_init_15days(&mut self, pool_id: PoolId);
     fn ft_on_transfer(
         &mut self,
         sender_id: AccountId,
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128>;
-    fn change_pool_funding_time(&mut self, pool_id: u64, time_start_pledge: u64, time_end_pledge: u64);
     fn add_token(
         &mut self,
         token_id: String,
