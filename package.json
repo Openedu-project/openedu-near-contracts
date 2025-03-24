@@ -4,5 +4,9 @@
   "main": "index.js",
   "repository": "https://github.com/vbi-blockchain/payment.git",
   "author": "kaito2001 <kaito.ptit@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "near-cli": "^4.0.13",
+    "near-cli-rs": "^0.16.0"
+  }
 }
